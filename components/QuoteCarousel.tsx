@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
@@ -40,9 +40,9 @@ export function QuoteCarousel() {
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
           >
-            <span className="text-gradient">“</span>
+            <span className="text-attention">“</span>
             {quotes[index]}
-            <span className="text-gradient">”</span>
+            <span className="text-attention">”</span>
           </motion.p>
         </AnimatePresence>
       </motion.div>
@@ -56,7 +56,7 @@ export function QuoteCarousel() {
             aria-label={`Ir para a frase ${i + 1}`}
             className={cn(
               "h-2 rounded-full transition-all",
-              i === index ? "w-6 bg-gradient-brand" : "w-2 bg-border hover:bg-fg-muted",
+              i === index ? "w-6 bg-attention" : "w-2 bg-border hover:bg-fg-muted",
             )}
           />
         ))}

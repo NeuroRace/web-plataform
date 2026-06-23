@@ -4,9 +4,9 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-border/60 bg-bg">
+    <footer className="border-t border-hairline bg-bg">
       <div className="mx-auto max-w-4xl px-5 py-12 text-center">
-        <p className="font-display font-semibold text-fg-strong">
+        <p className="font-mono text-xs uppercase tracking-[0.14em] text-fg-muted">
           © {year} {site.name} — {site.tagline}
         </p>
         <p className="mt-1 text-sm text-fg-muted">

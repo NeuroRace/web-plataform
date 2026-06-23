@@ -9,20 +9,20 @@ export function VoteBanner() {
   const active = Boolean(site.event.voteUrl);
 
   return (
-    <div className="bg-gradient-brand text-bg">
-      <div className="mx-auto flex max-w-5xl items-center justify-center px-5 py-2.5 text-center text-sm">
+    <div className="border-b border-hairline bg-bg-elev text-fg">
+      <div className="mx-auto flex max-w-5xl items-center justify-center gap-2 px-5 py-2.5 text-center font-mono text-xs uppercase tracking-wide">
         {active ? (
           <a
             href={site.event.voteUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-full bg-bg/90 px-4 py-1 font-display font-semibold text-fg-strong transition-transform hover:scale-105"
+            className="rounded-full bg-attention px-4 py-1 font-semibold text-bg transition-transform hover:scale-[1.03]"
           >
-            🗳️ Votar no NeuroRace agora!
+            Votar no NeuroRace
           </a>
         ) : (
-          <span className="rounded-full bg-bg/20 px-4 py-1 font-medium">
-            🗳️ Votação em breve
+          <span className="text-fg-muted">
+            Votação <span className="text-attention">em breve</span> · {site.event.name}
           </span>
         )}
       </div>
