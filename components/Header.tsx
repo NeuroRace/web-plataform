@@ -110,8 +110,8 @@ export function Header() {
                   className={cn(
                     "rounded-lg px-3 py-2 font-display font-medium transition-colors",
                     pathname === link.href
-                      ? "bg-card text-cyan"
-                      : "text-fg hover:bg-card hover:text-fg-strong",
+                      ? "bg-surface text-attention"
+                      : "text-fg hover:bg-surface hover:text-fg-strong",
                   )}
                 >
                   {link.label}
@@ -158,8 +158,8 @@ function NavItem({
     <Link
       href={href}
       className={cn(
-        "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-        active ? "text-cyan" : "text-fg hover:text-fg-strong",
+        "rounded-lg px-3 py-2 font-mono text-[0.78rem] font-medium uppercase tracking-wide transition-colors",
+        active ? "text-attention" : "text-fg hover:text-fg-strong",
       )}
     >
       {children}
@@ -178,10 +178,10 @@ function AuthChip({
     <div className="flex items-center gap-2">
       <Link
         href="/dashboard"
-        className="flex items-center gap-2 rounded-full border border-border bg-card/40 py-1 pl-1 pr-3 transition-colors hover:border-cyan"
+        className="flex items-center gap-2 rounded-full border border-border bg-surface/50 py-1 pl-1 pr-3 transition-colors hover:border-cyan"
         title="Meu Desempenho"
       >
-        <span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-brand text-sm font-bold text-bg">
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-attention text-sm font-bold text-bg">
           {email[0]?.toUpperCase()}
         </span>
         <span className="max-w-[10rem] truncate text-sm text-fg">{email}</span>
