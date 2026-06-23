@@ -46,3 +46,53 @@ export function makeDemoSeries(options: DemoSeriesOptions = {}): SeriesPoint[] {
 export function isInFocusZone(attention: number | null, threshold: number): boolean {
   return attention != null && attention >= threshold;
 }
+
+export interface NoiseSegment {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  opacity: number;
+}
+
+export interface NoiseSegmentsOptions {
+  /** quantidade de fragmentos (default 22) */
+  count?: number;
+  /** semente do PRNG (default 13) — determinístico (SSR === CSR) */
+  seed?: number;
+  /** largura do viewBox de referência (default 200) */
+  width?: number;
+  /** altura do viewBox de referência (default 300) */
+  height?: number;
+}
+
+function round1(v: number): number {
+  return Math.round(v * 10) / 10;
+}
+
+/**
+ * Fragmentos de linha curtos e dispersos para o campo de RUÍDO (decorativo).
+ * Determinístico via mulberry32 — sem Math.random() em render (mismatch de hidratação).
+ */
+export function makeNoiseSegments(options: NoiseSegmentsOptions = {}): NoiseSegment[] {
+  const count = options.count ?? 22;
+  const width = options.width ?? 200;
+  const height = options.height ?? 300;
+  const rnd = mulberry32(options.seed ?? 13);
+  const out: NoiseSegment[] = [];
+  for (let i = 0; i < count; i++) {
+    const x1 = rnd() * width;
+    const y1 = rnd() * height;
+    const len = 18 + rnd() * 46; // fragmentos curtos
+    const angle = (rnd() - 0.5) * 1.4; // leve inclinação
+    const opacity = Math.round((0.12 + rnd() * 0.33) * 100) / 100;
+    out.push({
+      x1: round1(x1),
+      y1: round1(y1),
+      x2: round1(x1 + Math.cos(angle) * len),
+      y2: round1(y1 + Math.sin(angle) * len),
+      opacity,
+    });
+  }
+  return out;
+}

@@ -79,6 +79,10 @@
     animation: signal-draw 1.1s ease-out forwards;
   }
 
+  /* Drift sutil do campo de ruído. Pausável via data-playing; reduced-motion congela (regra global). */
+  .animate-noise-drift { animation: noise-drift 11s ease-in-out infinite alternate; }
+  .animate-noise-drift[data-playing="false"] { animation-play-state: paused; }
+
   /* DEPRECATED — só p/ páginas legadas (planos B/C). NÃO usar em código novo. */
   .text-gradient {
     background-image: linear-gradient(90deg, var(--color-cyan), var(--color-pink));
@@ -107,6 +111,10 @@
 }
 @keyframes signal-draw {
   to { stroke-dashoffset: 0; }
+}
+@keyframes noise-drift {
+  from { transform: translate3d(-4px, 0, 0); }
+  to { transform: translate3d(4px, -6px, 0); }
 }
 
 /* Acessibilidade: respeitar quem prefere menos movimento */
