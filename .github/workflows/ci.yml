@@ -10,9 +10,14 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Least-privilege: o job so faz checkout e roda npm scripts.
+permissions:
+  contents: read
+
 jobs:
   checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       # Chaves PUBLICAS do Supabase (vao no bundle do browser; NAO sao segredo).
       # Mesmos valores do .env.example versionado. O `next build` precisa delas.
@@ -34,7 +39,14 @@ jobs:
       - name: Testes (vitest)
         run: npm test
 
-      # `next build` tipa o projeto (gera o next-env.d.ts + typecheck estrito) e
+      # `next build` gera o next-env.d.ts (necessario p/ o tsc resolver *.png) e
       # valida o build de producao — o mesmo que a Vercel roda no deploy.
-      - name: Build (typecheck + build de producao)
+      - name: Build (build de producao)
         run: npm run build
+
+      # Typecheck explicito, independente do next.config: se algum dia alguem
+      # ligar `typescript.ignoreBuildErrors`, o build deixaria de tipar — este
+      # passo garante o `tsc --noEmit` que o CLAUDE.md exige. Roda apos o build
+      # de proposito (o next-env.d.ts ja existe).
+      - name: Typecheck (tsc --noEmit)
+        run: npx tsc --noEmit
