@@ -91,6 +91,21 @@ describe("computeMetrics", () => {
     expect(m.sampleCount).toBe(3);
   });
 
+  it("attention/meditation = 0 são valores VÁLIDOS (0 != null): entram na média/peak", () => {
+    // Guarda anti-regressão: o filtro é `v != null`, não truthiness. Se alguém
+    // trocar por `filter(v => v)`, o 0 (perda de sinal no NeuroSky, range 0-100)
+    // sumiria da média e estes asserts falhariam.
+    const points = [pt({ attention: 0, meditation: 0 }), pt({ attention: 100, meditation: 50 })];
+    const m = computeMetrics(points, "2026-01-01T00:00:00Z", null);
+    // att = [0, 100] -> avg 50, peak 100 ; med = [0, 50] -> avg 25
+    expect(m.avgAttention).toBe(50);
+    expect(m.peakAttention).toBe(100);
+    expect(m.avgMeditation).toBe(25);
+    expect(m.sampleCount).toBe(2);
+    // só o 100 está >= 60 -> 50% na zona de foco
+    expect(m.focusZonePct).toBe(50);
+  });
+
   it("focusZonePct: BOUNDARY do threshold — 59 fora, 60 dentro (>=), 61 dentro", () => {
     const below = computeMetrics([pt({ attention: T - 1 })], "2026-01-01T00:00:00Z", null);
     const at = computeMetrics([pt({ attention: T })], "2026-01-01T00:00:00Z", null);
@@ -288,11 +303,14 @@ describe("formatPct", () => {
 });
 
 describe("formatRaceDate", () => {
-  // toLocaleString sem timeZone -> string localizada depende do fuso do runner.
-  // Só validamos o SHAPE (determinístico), nunca o conteúdo localizado exato.
-  it("retorna uma string não-vazia e não lança para ISO válido", () => {
+  // toLocaleString sem timeZone -> os VALORES dependem do fuso do runner, mas o
+  // SHAPE pt-BR (dd/mm <sep> hh:mm, sempre 2 dígitos) é invariante ao fuso.
+  // Validamos o shape (determinístico), nunca o conteúdo localizado exato.
+  it("retorna string no formato dd/mm <sep> hh:mm (shape TZ-safe)", () => {
     const out = formatRaceDate("2026-01-01T00:00:00Z");
     expect(typeof out).toBe("string");
-    expect(out.length).toBeGreaterThan(0);
+    // \D+ tolera o separador (vírgula/espaço varia por versão de ICU) sem
+    // depender do fuso; pega regressão de formato (opção removida, locale trocado).
+    expect(out).toMatch(/^\d{2}\/\d{2}\D+\d{2}:\d{2}$/);
   });
 });
