@@ -55,6 +55,24 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
       race_players: {
         Row: {
           created_at: string
@@ -170,6 +188,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_leaderboard: {
+        Args: { p_limit?: number; p_metric?: string }
+        Returns: {
+          display_name: string
+          rank: number
+          score: number
+        }[]
+      }
       ingest_race: { Args: { payload: Json }; Returns: Json }
     }
     Enums: {
