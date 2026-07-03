@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    env:
+      # Chaves PUBLICAS do Supabase (vao no bundle do browser; NAO sao segredo).
+      # Mesmos valores do .env.example versionado. O `next build` precisa delas.
+      NEXT_PUBLIC_SUPABASE_URL: https://wtaulbdkgrnrtbfezaxw.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_JpFFIWudbZ3GxR04QINxog_GqGk7dpw
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Testes (vitest)
+        run: npm test
+
+      # `next build` tipa o projeto (gera o next-env.d.ts + typecheck estrito) e
+      # valida o build de producao — o mesmo que a Vercel roda no deploy.
+      - name: Build (typecheck + build de producao)
+        run: npm run build
