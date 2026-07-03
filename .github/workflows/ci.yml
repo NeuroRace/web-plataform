@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least-privilege: o job so faz checkout e roda npm scripts.
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Chaves PUBLICAS do Supabase (vao no bundle do browser; NAO sao segredo).
+      # Mesmos valores do .env.example versionado. O `next build` precisa delas.
+      NEXT_PUBLIC_SUPABASE_URL: https://wtaulbdkgrnrtbfezaxw.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_JpFFIWudbZ3GxR04QINxog_GqGk7dpw
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Testes (vitest)
+        run: npm test
+
+      # `next build` gera o next-env.d.ts (necessario p/ o tsc resolver *.png) e
+      # valida o build de producao — o mesmo que a Vercel roda no deploy.
+      - name: Build (build de producao)
+        run: npm run build
+
+      # Typecheck explicito, independente do next.config: se algum dia alguem
+      # ligar `typescript.ignoreBuildErrors`, o build deixaria de tipar — este
+      # passo garante o `tsc --noEmit` que o CLAUDE.md exige. Roda apos o build
+      # de proposito (o next-env.d.ts ja existe).
+      - name: Typecheck (tsc --noEmit)
+        run: npx tsc --noEmit
