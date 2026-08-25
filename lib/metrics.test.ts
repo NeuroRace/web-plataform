@@ -284,6 +284,22 @@ describe("formatDuration", () => {
   it("125 -> 2m05s", () => {
     expect(formatDuration(125)).toBe("2m05s");
   });
+
+  // NEU-72: com fração, arredondar só os segundos estoura o mostrador.
+  // O score de get_leaderboard é numeric (segundos com fração), então isso
+  // aparece direto no /ranking — não é caso hipotético.
+  it("59.6 -> 1m00s (não '60s')", () => {
+    expect(formatDuration(59.6)).toBe("1m00s");
+  });
+  it("119.7 -> 2m00s (não '1m60s')", () => {
+    expect(formatDuration(119.7)).toBe("2m00s");
+  });
+  it("59.4 arredonda para baixo -> 59s", () => {
+    expect(formatDuration(59.4)).toBe("59s");
+  });
+  it("30.5 -> 31s (meio segundo sobe)", () => {
+    expect(formatDuration(30.5)).toBe("31s");
+  });
 });
 
 describe("formatPct", () => {
