@@ -29,7 +29,10 @@ npx tsc --noEmit  # não há script de typecheck; tsconfig é strict
 Cobertura honesta: os ~11 arquivos de teste cobrem quase só componentes **decorativos** (`components/signal/*`). **A lógica load-bearing NÃO tem teste**: `lib/metrics.ts` (métricas do dashboard), auth e os helpers Supabase. Não confie na contagem de testes como cobertura real.
 
 ## Convenções (best practices deste repo)
-- **Só-leitura do Supabase:** o app usa apenas `.select()` (`race_players`, `telemetry_points` em `app/dashboard/page.tsx`), escopado por RLS (`auth.uid()`). **Nunca** adicione `.insert/.update/.upsert/.delete/.rpc` de dados aqui — escrita é do edge.
+- **Dados de corrida são só-leitura:** `race_players`, `telemetry_points`, `races`, `players` — apenas `.select()`, escopado por RLS (`auth.uid()`). **Nunca** adicione `.insert/.update/.upsert/.delete` nessas tabelas: quem escreve é o edge.
+- **Duas exceções, ambas desenhadas pelo backend** (ver `../cloud-backend/docs/frontend-integration.md` §7 e §8):
+  - `profiles.display_name` — o front **escreve** via `.update()` (`components/ranking/DisplayNameForm.tsx`). A migration criou a policy `profiles_update_own` e o `grant update ... to authenticated` exatamente para isso. É a **única** escrita do front.
+  - `get_leaderboard` — leitura pública via `.rpc()` (`app/ranking/page.tsx`). É `security definer` e devolve só `rank/display_name/score`, sem PII.
 - **Clientes Supabase:** browser (`lib/supabase/client.ts`), SSR (`lib/supabase/server.ts`), middleware (`lib/supabase/middleware.ts`). Tipos em `lib/supabase/database.types.ts`.
 - **Chaves:** só a **publishable** (`NEXT_PUBLIC_*`, pública, vai no bundle). **Nunca** use/commite a `service_role` (só o seeder local a usa, via `.env.local`).
 - **Config central** em `lib/site.ts` (nav, frases, equipe). Métricas do dashboard em `lib/metrics.ts` são **provisórias** (pendentes do backend).
@@ -41,9 +44,11 @@ Cobertura honesta: os ~11 arquivos de teste cobrem quase só componentes **decor
 Hospedado na **Vercel** (integração Git da Vercel, configurada fora do repo — não há `vercel.json` nem workflow). **Não verificado ao vivo** neste doc; `lib/site.ts` ainda usa a URL placeholder `neurorace.vercel.app`.
 
 ## Fluxo de trabalho
-Branch a partir de `main` + PR (worktree por padrão em implementação). Antes do commit: `npm run lint && npm test && npx tsc --noEmit`. **Sem CI hoje** — rode os checks localmente.
+Branch a partir de `main` + PR (worktree por padrão em implementação). Antes do commit: `npm run lint && npm test && npx tsc --noEmit`. **Há CI** (`.github/workflows/ci.yml`, desde o PR #4): roda lint + vitest + build + tsc em PR e push na `main`. Rode local mesmo assim — o gate não substitui o loop rápido.
+
+> `npx tsc --noEmit` falha num checkout fresco até existir o `next-env.d.ts` (declara os módulos `*.png`), que só é gerado por `next dev`/`next build`. Rode o build uma vez antes do typecheck.
 
 ## Ponteiros
 - Plano/design: `docs/PLANO.md`, `docs/DESIGN.md`. Seeder de demo: `scripts/seed-demo.mjs`.
 - Par na nuvem (o que a web lê): `../cloud-backend/` (contrato de leitura em `../cloud-backend/docs/frontend-integration.md`).
-- Linear: time **NEU**, projeto **web-plataform**. `/ranking` depende de view/ranking do backend (NEU-11 / NEU-67).
+- Linear: time **NEU**, projeto **web-plataform**. `/ranking` (NEU-11) e o apelido (NEU-71) estão implementados sobre `get_leaderboard`. Métricas além de `best_time` dependem do backend (NEU-67).

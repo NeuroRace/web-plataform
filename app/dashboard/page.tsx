@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { buildRaceSummaries, type TelemetryRow } from "@/lib/metrics";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 import { EmptyState } from "@/components/dashboard/EmptyState";
+import { DisplayNameForm } from "@/components/ranking/DisplayNameForm";
 
 export const metadata: Metadata = { title: "Meu Desempenho" };
 
@@ -29,16 +30,22 @@ export default async function DashboardPage() {
   const email = user.email ?? "";
 
   // A RLS escopa tudo ao próprio usuário.
-  const [{ data: racePlayers }, { data: telemetry }] = await Promise.all([
-    supabase
-      .from("race_players")
-      .select("id, race_id, player_slot, started_at, finished_at")
-      .order("started_at", { ascending: true }),
-    supabase
-      .from("telemetry_points")
-      .select("race_player_id, t, attention, meditation")
-      .order("t", { ascending: true }),
-  ]);
+  const [{ data: racePlayers }, { data: telemetry }, { data: profile }] =
+    await Promise.all([
+      supabase
+        .from("race_players")
+        .select("id, race_id, player_slot, started_at, finished_at")
+        .order("started_at", { ascending: true }),
+      supabase
+        .from("telemetry_points")
+        .select("race_player_id, t, attention, meditation")
+        .order("t", { ascending: true }),
+      supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", user.id)
+        .maybeSingle(),
+    ]);
 
   const summaries = buildRaceSummaries(
     racePlayers ?? [],
@@ -51,6 +58,13 @@ export default async function DashboardPage() {
         Olá, <span className="text-gradient">{nameFromEmail(email)}</span>!
       </h1>
       <p className="mt-2 text-fg-muted">{email}</p>
+
+      <div className="mt-8 rounded-card border border-border bg-surface/40 p-5 sm:p-6">
+        <DisplayNameForm
+          userId={user.id}
+          initialName={profile?.display_name ?? null}
+        />
+      </div>
 
       <div className="mt-8">
         {summaries.length === 0 ? (

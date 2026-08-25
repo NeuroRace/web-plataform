@@ -125,8 +125,11 @@ export function buildRaceSummaries(
 
 export function formatDuration(s: number | null): string {
   if (s == null) return "—";
-  const m = Math.floor(s / 60);
-  const sec = Math.round(s % 60);
+  // NEU-72: arredondar o TOTAL antes de dividir. Arredondar só o resto fazia
+  // 59.6 virar "60s" e 119.7 virar "1m60s" — o carry nunca chegava aos minutos.
+  const total = Math.round(s);
+  const m = Math.floor(total / 60);
+  const sec = total % 60;
   return m > 0 ? `${m}m${String(sec).padStart(2, "0")}s` : `${sec}s`;
 }
 
