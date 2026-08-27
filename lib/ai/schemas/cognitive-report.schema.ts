@@ -72,3 +72,43 @@ export const CognitiveReportOutputSchema = z.object({
 });
 
 export type CognitiveReportOutput = z.infer<typeof CognitiveReportOutputSchema>;
+
+/**
+ * Gera um relatório seguro por regras heurísticas caso o LLM falhe ou esteja offline.
+ */
+export function generateFallbackReport(avgAttention: number, chokeDetected: boolean): CognitiveReportOutput {
+  const isGoodFocus = avgAttention >= 60;
+
+  return {
+    archetype: chokeDetected
+      ? "REATIVO_SOB_PRESSAO"
+      : isGoodFocus
+      ? "HIPERFOCADO_RESILIENTE"
+      : "EM_DESENVOLVIMENTO",
+    headline: chokeDetected
+      ? "Bom início, mas oscilação nos momentos decisivos."
+      : isGoodFocus
+      ? "Foco sólido e consistente durante a prova."
+      : "Sessão de adaptação ao biofeedback.",
+    narrative_summary:
+      "Sua telemetria cerebral foi registrada. O foco médio registrado foi de " +
+      avgAttention.toFixed(0) +
+      "%. Continue praticando para estabilizar suas ondas Beta durante momentos críticos da corrida.",
+    mental_strengths: isGoodFocus
+      ? ["Boa ativação na largada", "Atenção média sustentada"]
+      : ["Participação e leitura de sinais concluída"],
+    areas_for_improvement: [
+      "Manter a respiração cadenciada nas retas",
+      "Evitar dispersão visual durante a corrida",
+    ],
+    actionable_drills: [
+      {
+        title: "Técnica 4-4-4 (Box Breathing)",
+        category: "RESPIRACAO",
+        instruction: "Inspire em 4s, segure em 4s e expire em 4s antes de colocar o headset para a próxima largada.",
+      },
+    ],
+    badges_unlocked: isGoodFocus ? ["ESTADO_DE_FLOW"] : [],
+    confidence_score: 0.7,
+  };
+}
