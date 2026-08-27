@@ -30,6 +30,10 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // NEU-85: e-mail já cadastrado. O Supabase (proteção contra enumeração) responde ao
+  // signUp com "sucesso" e `identities: []`, sem enviar e-mail — sem este ramo a tela
+  // mandava a pessoa esperar um e-mail que nunca chega.
+  const [existingAccount, setExistingAccount] = useState(false);
 
   const isSignup = mode === "signup";
 
@@ -37,6 +41,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setExistingAccount(false);
 
     const supabase = createClient();
     const normalized = email.trim().toLowerCase();
@@ -51,6 +56,11 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       });
       if (error) {
         setError(translateError(error.message));
+        setLoading(false);
+        return;
+      }
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        setExistingAccount(true);
         setLoading(false);
         return;
       }
@@ -124,8 +134,24 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         </div>
 
         {error && (
-          <p className="rounded-lg border border-pink/40 bg-pink/10 px-4 py-2 text-sm text-pink">
+          <p
+            role="alert"
+            className="rounded-lg border border-pink/40 bg-pink/10 px-4 py-2 text-sm text-pink"
+          >
             {error}
+          </p>
+        )}
+
+        {existingAccount && (
+          <p
+            role="alert"
+            className="rounded-lg border border-pink/40 bg-pink/10 px-4 py-2 text-sm text-pink"
+          >
+            Este e-mail já tem conta. Nenhum e-mail foi enviado.{" "}
+            <Link href="/login" className="underline">
+              Entrar
+            </Link>{" "}
+            ou recupere a senha.
           </p>
         )}
 
