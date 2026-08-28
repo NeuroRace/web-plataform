@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-dotenv.config({ path: ".env.local" }); // Especifica o arquivo .env.local
+dotenv.config({ path: ".env.local" }); // Carrega as variáveis do .env.local
 
 import chokeMock from "../lib/ai/mocks/scenario-choke.json";
 import { generateCognitiveReport } from "../lib/ai/services/cognitive-engine.service";
@@ -7,7 +7,7 @@ import type { RaceSummary } from "../lib/metrics";
 
 async function runTest() {
   console.log("==================================================");
-  console.log("🧠 NEURORACE AI ENGINE - TESTE DE PIPELINE (GEMINI)");
+  console.log("🧠 NEURORACE AI ENGINE - TESTE DE PIPELINE (GROQ)");
   console.log("==================================================");
 
   // Converte o mock para o tipo RaceSummary esperado
@@ -25,7 +25,7 @@ async function runTest() {
     ];
   }
 
-  console.log("\n⏳ Enviando telemetria para o Google Gemini...");
+  console.log("\n⏳ Enviando telemetria para a Groq (LPU Inference Engine)...");
   const startTime = Date.now();
 
   const { report, isFallback } = await generateCognitiveReport(
@@ -37,16 +37,16 @@ async function runTest() {
 
   console.log(`\n✅ Resposta recebida em ${duration}s! (Fallback: ${isFallback ? "SIM" : "NÃO"})`);
   console.log("\n--------------------------------------------------");
-  console.log(`Arquétipo: ${report.archetype}`);
-  console.log(`Headline: "${report.headline}"`);
+  console.log(`🏆 Arquétipo: ${report.archetype}`);
+  console.log(`📢 Headline: "${report.headline}"`);
   console.log(`🎖️ Badges Desbloqueadas: ${report.badges_unlocked.join(", ") || "Nenhuma"}`);
-  console.log("\nResumo Narrativo:");
+  console.log("\n📖 Resumo Narrativo:");
   console.log(report.narrative_summary);
-  console.log("\nPontos Fortes:");
+  console.log("\n💪 Pontos Fortes:");
   report.mental_strengths.forEach((s) => console.log(`  - ${s}`));
-  console.log("\nOportunidades de Melhoria:");
+  console.log("\n🎯 Oportunidades de Melhoria:");
   report.areas_for_improvement.forEach((i) => console.log(`  - ${i}`));
-  console.log("\nTreino Mental Recomendado:");
+  console.log("\n🧘 Treino Mental Recomendado:");
   report.actionable_drills.forEach((d) =>
     console.log(`  [${d.category}] ${d.title}: ${d.instruction}`)
   );
@@ -54,5 +54,5 @@ async function runTest() {
 }
 
 runTest().catch((err) => {
-  console.error("Erro fatal durante a execução do teste:", err);
+  console.error("❌ Erro fatal durante a execução do teste:", err);
 });
