@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { StatCard } from "./StatCard";
 import { EvolutionChart } from "./EvolutionChart";
 import { ReplayChart } from "./ReplayChart";
@@ -12,6 +12,11 @@ import {
 } from "@/lib/metrics";
 import { cn } from "@/lib/utils";
 
+// Componentes e Serviços de IA
+import { CognitiveFeedbackCard } from "@/components/ai/cognitive-feedback-card";
+import { getCognitiveReportAction } from "@/lib/ai/actions/generate-report.action";
+import { generateFallbackReport, type CognitiveReportOutput } from "@/lib/ai/schemas/cognitive-report.schema";
+
 export function DashboardClient({ races }: { races: RaceSummary[] }) {
   // `races` chega ordenado por started_at ascendente.
   const [selectedId, setSelectedId] = useState(
@@ -20,6 +25,44 @@ export function DashboardClient({ races }: { races: RaceSummary[] }) {
   const selected =
     races.find((r) => r.racePlayerId === selectedId) ??
     races[races.length - 1];
+
+  // Estado da IA
+  const [report, setReport] = useState<CognitiveReportOutput | null>(null);
+  const [loadingAi, setLoadingAi] = useState(false);
+  const [isFallback, setIsFallback] = useState(false);
+
+  // Dispara a IA sempre que a corrida selecionada mudar
+  useEffect(() => {
+    if (!selected) return;
+
+    let isMounted = true;
+    setLoadingAi(true);
+
+    getCognitiveReportAction(selected)
+      .then((res) => {
+        if (isMounted && res.success && res.data) {
+          setReport(res.data);
+          setIsFallback(!!res.isFallback);
+        } else if (isMounted) {
+          // Fallback seguro se falhar
+          setReport(generateFallbackReport(selected.metrics.avgAttention ?? 50, false));
+          setIsFallback(true);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setReport(generateFallbackReport(selected.metrics.avgAttention ?? 50, false));
+          setIsFallback(true);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setLoadingAi(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedId, selected]);
 
   const raceAverages = races
     .map((r) => r.metrics.avgAttention)
@@ -34,8 +77,13 @@ export function DashboardClient({ races }: { races: RaceSummary[] }) {
     foco: r.metrics.avgAttention != null ? Math.round(r.metrics.avgAttention) : null,
   }));
 
+  if (!selected) {
+    return null;
+  }
+
   return (
     <div className="space-y-6">
+      {/* 1. Métricas Globais */}
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Foco médio" value={formatPct(overallAvg)} />
         <StatCard label="Melhor corrida" value={formatPct(best)} />
@@ -48,10 +96,12 @@ export function DashboardClient({ races }: { races: RaceSummary[] }) {
         podem mudar quando o cálculo padrão for publicado.
       </p>
 
+      {/* 2. Gráfico de Evolução Geral */}
       <Card title="📈 Evolução do foco (por corrida)">
         <EvolutionChart data={evolution} />
       </Card>
 
+      {/* 3. Seção do Replay + Lista Lateral de Corridas */}
       <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
         <Card title={`🧠 Replay — ${formatRaceDate(selected.startedAt)}`}>
           <ReplayChart series={selected.series} />
@@ -111,6 +161,20 @@ export function DashboardClient({ races }: { races: RaceSummary[] }) {
           </ul>
         </Card>
       </div>
+
+      {/* 4. SEÇÃO DO NEUROCOACH AI (LARGURA TOTAL) */}
+      <section className="pt-2">
+        {loadingAi ? (
+          <div className="rounded-2xl border border-border bg-card/30 p-8 text-center animate-pulse text-fg-muted">
+            <span className="text-xl inline-block mb-2">🧠</span>
+            <p className="text-sm font-medium text-fg-strong">
+              O NeuroCoach está analisando o padrão neurocognitivo desta corrida...
+            </p>
+          </div>
+        ) : report ? (
+          <CognitiveFeedbackCard report={report} isFallback={isFallback} />
+        ) : null}
+      </section>
     </div>
   );
 }
