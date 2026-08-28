@@ -4,13 +4,13 @@ import { z } from "zod";
  * 1. Arquétipos Cognitivos definidos para o NeuroRace
  */
 export const CognitiveArchetypeEnum = z.enum([
-  "MESTRE_ZEN",             // Alta estabilidade, meditação alta, foco constante
-  "SPRINTER_EXPLOSIVO",     // Foco altíssimo no início, queda por fadiga no final
-  "HIPERFOCADO_RESILIENTE", // Foco alto e sustentado, não se abala com pressão
-  "REATIVO_SOB_PRESSAO",    // Sofre com ultrapassagens / instabilidade alta (Choke)
-  "OSCILADOR_CAOTICO",      // Variação constante e imprevisível de atenção
-  "EM_DESENVOLVIMENTO",     // Níveis gerais baixos, precisando de treino de base
-]);
+  "MESTRE_ZEN",
+  "SPRINTER_EXPLOSIVO",
+  "HIPERFOCADO_RESILIENTE",
+  "REATIVO_SOB_PRESSAO",
+  "OSCILADOR_CAOTICO",
+  "EM_DESENVOLVIMENTO",
+]).catch("EM_DESENVOLVIMENTO"); // Se o modelo inventar um arquétipo fora da lista, usa este como fallback
 
 export type CognitiveArchetype = z.infer<typeof CognitiveArchetypeEnum>;
 
@@ -18,63 +18,54 @@ export type CognitiveArchetype = z.infer<typeof CognitiveArchetypeEnum>;
  * 2. Badges Cognitivas Gamificadas
  */
 export const CognitiveBadgeEnum = z.enum([
-  "LARGADA_RELAMPAGO",      // Atenção > 80 nos primeiros 10s
-  "MENTE_DE_ACO",           // Baixo desvio padrão (< 15) durante toda a prova
-  "RECUPERACAO_HEROICA",    // Recuperou mais de 30 pontos de atenção após uma queda
-  "ESTADO_DE_FLOW",         // Flow score > 60%
-  "CONTROLE_EMOCIONAL",     // Meditação > 50 mesmo durante ultrapassagens
-  "FADIGA_ZERO",            // Manteve atenção alta até o último segundo
+  "LARGADA_RELAMPAGO",
+  "MENTE_DE_ACO",
+  "RECUPERACAO_HEROICA",
+  "ESTADO_DE_FLOW",
+  "CONTROLE_EMOCIONAL",
+  "FADIGA_ZERO",
 ]);
 
 export type CognitiveBadge = z.infer<typeof CognitiveBadgeEnum>;
 
 /**
- * 3. Exercício / Treino de Biofeedback Recomendado
+ * 3. Exercício / Treino de Biofeedback Recomendado (Agora Flexível)
  */
 export const ActionableDrillSchema = z.object({
   title: z.string().describe("Nome curto e impactante da técnica mental"),
-  category: z.enum(["RESPIRACAO", "FOCO_SUSTENTADO", "RECUPERACAO_RAPIDA", "DESCONEXAO_ESTRESSE"]),
-  instruction: z.string().describe("Passo a passo prático de 1 a 2 frases de como executar antes da próxima corrida"),
+  category: z.string().default("FOCO_SUSTENTADO").describe("Categoria da técnica (ex: RESPIRACAO, FOCO, RECUPERACAO, MEDITACAO)"),
+  instruction: z.string().describe("Passo a passo prático de como executar"),
 });
 
 /**
- * 4. Schema de SAÍDA do LLM (O que a IA DEVE retornar)
+ * 4. Schema de SAÍDA do LLM
  */
 export const CognitiveReportOutputSchema = z.object({
-  archetype: CognitiveArchetypeEnum.describe("O arquétipo mental dominante do piloto nesta corrida"),
-  headline: z.string().describe("Frase de impacto resumindo a performance mental (máx 90 caracteres)"),
-  narrative_summary: z
-    .string()
-    .describe("Análise narrativa em 2 a 3 parágrafos explicando como o cérebro reagiu às fases e eventos da corrida"),
-  mental_strengths: z
-    .array(z.string())
-    .min(1)
-    .max(3)
-    .describe("1 a 3 pontos fortes cognitivos demonstrados"),
-  areas_for_improvement: z
-    .array(z.string())
-    .min(1)
-    .max(3)
-    .describe("1 a 3 oportunidades claras de evolução mental"),
-  actionable_drills: z
-    .array(ActionableDrillSchema)
-    .min(1)
-    .max(2)
-    .describe("1 ou 2 exercícios práticos recomendados para o perfil detectado"),
-  badges_unlocked: z
-    .array(CognitiveBadgeEnum)
-    .describe("Lista de badges que o jogador conquistou baseadas nas métricas"),
-  confidence_score: z
-    .number()
-    .min(0)
-    .max(1)
-    .describe("Grau de confiança da IA na análise com base na consistência dos dados"),
+  archetype: CognitiveArchetypeEnum,
+  headline: z.string(),
+  narrative_summary: z.string(),
+  mental_strengths: z.array(z.string()).min(1),
+  areas_for_improvement: z.array(z.string()).min(1),
+  actionable_drills: z.array(ActionableDrillSchema).min(1),
+  badges_unlocked: z.array(z.string()).default([]).transform((badges) => {
+    // Filtra para garantir apenas badges conhecidas
+    const validBadges: CognitiveBadge[] = [
+      "LARGADA_RELAMPAGO",
+      "MENTE_DE_ACO",
+      "RECUPERACAO_HEROICA",
+      "ESTADO_DE_FLOW",
+      "CONTROLE_EMOCIONAL",
+      "FADIGA_ZERO",
+    ];
+    return badges.filter((b): b is CognitiveBadge => validBadges.includes(b as CognitiveBadge));
+  }),
+  confidence_score: z.number().optional().default(0.9),
 });
 
 export type CognitiveReportOutput = z.infer<typeof CognitiveReportOutputSchema>;
 
 /**
- * Gera um relatório seguro por regras heurísticas caso o LLM falhe ou esteja offline.
+ * Gerador de Fallback Heurístico (permanece igual para contingência)
  */
 export function generateFallbackReport(avgAttention: number, chokeDetected: boolean): CognitiveReportOutput {
   const isGoodFocus = avgAttention >= 60;

@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 import type { RaceSummary } from "@/lib/metrics";
 import { extractCognitiveFeatures } from "../feature-extractor";
 import {
@@ -17,88 +17,95 @@ export interface GenerateReportOptions {
 }
 
 /**
- * Modelos suportados na sua conta em ordem de prioridade
+ * Limpa blocos de código Markdown (```json ... ```) caso o modelo os inclua.
  */
-const ACTIVE_MODELS_POOL = [
-  "gemini-3.6-flash",
-  "gemini-3.7-flash",
-  "gemini-flash-latest",
-  "gemini-3.5-flash",
-  "gemini-flash-lite-latest",
-];
+function cleanJsonString(raw: string): string {
+  let cleaned = raw.trim();
+  if (cleaned.startsWith("```json")) {
+    cleaned = cleaned.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+  } else if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```\s*/, "").replace(/\s*```$/, "");
+  }
+  return cleaned.trim();
+}
 
 /**
- * Função principal que orquestra a geração do relatório cognitivo via Gemini com Failover.
+ * Função principal que orquestra a geração do relatório cognitivo via Groq.
  */
 export async function generateCognitiveReport(
   player: RaceSummary,
   opponent?: RaceSummary | null,
   options: GenerateReportOptions = {}
 ): Promise<{ report: CognitiveReportOutput; isFallback: boolean }> {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "";
-  const { timeoutMs = 8000 } = options;
+  const apiKey = process.env.GROQ_API_KEY || "";
+  const modelName = options.model || "openai/gpt-oss-120b";
+  const timeoutMs = options.timeoutMs || 10000;
 
-  // 1. Extrai métricas consolidadas e detecta anomalias
+  // 1. Extrai métricas consolidadas
   const payload = extractCognitiveFeatures(player, opponent);
   const avgAtt = player.metrics.avgAttention ?? 50;
   const chokeDetected = payload.extractedFeatures.chokeDetected;
 
-  // 2. Se a API Key não estiver configurada, usa o Fallback
   if (!apiKey) {
-    console.warn(
-      "[NeuroRace AI] GEMINI_API_KEY não configurada. Utilizando relatório heurístico de fallback."
-    );
+    console.warn("[NeuroRace AI] GROQ_API_KEY não configurada. Usando fallback.");
     return {
       report: generateFallbackReport(avgAtt, chokeDetected),
       isFallback: true,
     };
   }
 
-  // 3. Monta o prompt contextual
   const userPrompt = buildCognitiveUserPrompt(payload);
-  const genAI = new GoogleGenerativeAI(apiKey);
+  const groq = new OpenAI({
+    apiKey,
+    baseURL: "https://api.groq.com/openai/v1",
+  });
 
-  const modelsToTry = options.model ? [options.model, ...ACTIVE_MODELS_POOL] : ACTIVE_MODELS_POOL;
+  try {
+    console.log(`[NeuroRace AI] Enviando requisição para Groq (Modelo: ${modelName})...`);
 
-  for (const modelName of modelsToTry) {
-    try {
-      const model = genAI.getGenerativeModel({
-        model: modelName,
-        systemInstruction: NEUROCOACH_SYSTEM_PROMPT,
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.3,
-        },
-      });
+    const completion = await groq.chat.completions.create({
+      model: modelName,
+      messages: [
+        { role: "system", content: NEUROCOACH_SYSTEM_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.2,
+    });
 
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`Timeout de ${timeoutMs}ms no modelo ${modelName}`)), timeoutMs)
-      );
-
-      const apiPromise = model.generateContent(userPrompt);
-      const result = await Promise.race([apiPromise, timeoutPromise]);
-      const responseText = result.response.text();
-
-      if (!responseText) {
-        throw new Error(`Resposta vazia do modelo ${modelName}`);
-      }
-
-      // 4. Parse e validação estrita via Zod
-      const rawJson = JSON.parse(responseText);
-      const parsedReport = CognitiveReportOutputSchema.parse(rawJson);
-
-      return {
-        report: parsedReport,
-        isFallback: false,
-      };
-    } catch (err: unknown) {
-      console.warn(`[NeuroRace AI] Modelo '${modelName}' indisponível ou em alta demanda, tentando próximo...`);
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("A API retornou conteúdo vazio.");
     }
-  }
 
-  console.error("[NeuroRace AI Error] Todos os modelos do Gemini falharam/sobrecarregados. Acionando Fallback.");
-  return {
-    report: generateFallbackReport(avgAtt, chokeDetected),
-    isFallback: true,
-  };
+    console.log("[NeuroRace AI] Resposta bruta recebida com sucesso da Groq!");
+
+    // Limpa possíveis tags de markdown
+    const cleanedJson = cleanJsonString(content);
+    const rawParsed = JSON.parse(cleanedJson);
+
+    // Valida com o Zod
+    const validatedReport = CognitiveReportOutputSchema.parse(rawParsed);
+
+    return {
+      report: validatedReport,
+      isFallback: false,
+    };
+  } catch (error: any) {
+    console.error("================ DETALHES DO ERRO REAL ================");
+    if (error?.issues) {
+      // Erro específico de validação do Zod
+      console.error("❌ ERRO DE SCHEMA DO ZOD (Campos incorretos retornados pela IA):");
+      console.error(JSON.stringify(error.issues, null, 2));
+    } else {
+      // Erro de rede ou chamada da API
+      console.error("❌ ERRO NA CHAMADA OU PARSE:", error?.message || error);
+    }
+    console.error("========================================================");
+
+    return {
+      report: generateFallbackReport(avgAtt, chokeDetected),
+      isFallback: true,
+    };
+  }
 }
