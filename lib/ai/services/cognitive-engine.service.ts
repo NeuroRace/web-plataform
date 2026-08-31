@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { ZodError } from "zod";
 import type { RaceSummary } from "@/lib/metrics";
 import { extractCognitiveFeatures } from "../feature-extractor";
 import {
@@ -58,11 +59,10 @@ export async function generateCognitiveReport(
   const groq = new OpenAI({
     apiKey,
     baseURL: "https://api.groq.com/openai/v1",
+    timeout: timeoutMs, // timeout utilizado no SDK
   });
 
   try {
-    console.log(`[NeuroRace AI] Enviando requisição para Groq (Modelo: ${modelName})...`);
-
     const completion = await groq.chat.completions.create({
       model: modelName,
       messages: [
@@ -78,8 +78,6 @@ export async function generateCognitiveReport(
       throw new Error("A API retornou conteúdo vazio.");
     }
 
-    console.log("[NeuroRace AI] Resposta bruta recebida com sucesso da Groq!");
-
     // Limpa possíveis tags de markdown
     const cleanedJson = cleanJsonString(content);
     const rawParsed = JSON.parse(cleanedJson);
@@ -91,17 +89,16 @@ export async function generateCognitiveReport(
       report: validatedReport,
       isFallback: false,
     };
-  } catch (error: any) {
-    console.error("================ DETALHES DO ERRO REAL ================");
-    if (error?.issues) {
-      // Erro específico de validação do Zod
-      console.error("❌ ERRO DE SCHEMA DO ZOD (Campos incorretos retornados pela IA):");
-      console.error(JSON.stringify(error.issues, null, 2));
+  } catch (error: unknown) {
+    console.error("================ DETALHES DO ERRO ================");
+    if (error instanceof ZodError) {
+      console.error("ERRO DE SCHEMA DO ZOD:", JSON.stringify(error.issues, null, 2));
+    } else if (error instanceof Error) {
+      console.error("ERRO NA CHAMADA OU PARSE:", error.message);
     } else {
-      // Erro de rede ou chamada da API
-      console.error("❌ ERRO NA CHAMADA OU PARSE:", error?.message || error);
+      console.error("ERRO DESCONHECIDO:", String(error));
     }
-    console.error("========================================================");
+    console.error("==================================================");
 
     return {
       report: generateFallbackReport(avgAtt, chokeDetected),

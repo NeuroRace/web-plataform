@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { StatCard } from "./StatCard";
 import { EvolutionChart } from "./EvolutionChart";
 import { ReplayChart } from "./ReplayChart";
@@ -26,9 +26,9 @@ export function DashboardClient({ races }: { races: RaceSummary[] }) {
     races.find((r) => r.racePlayerId === selectedId) ??
     races[races.length - 1];
 
-  // Estado da IA
+  // Estado da IA com useTransition (sem setState síncrono no effect)
   const [report, setReport] = useState<CognitiveReportOutput | null>(null);
-  const [loadingAi, setLoadingAi] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [isFallback, setIsFallback] = useState(false);
 
   // Dispara a IA sempre que a corrida selecionada mudar
@@ -36,28 +36,26 @@ export function DashboardClient({ races }: { races: RaceSummary[] }) {
     if (!selected) return;
 
     let isMounted = true;
-    setLoadingAi(true);
 
-    getCognitiveReportAction(selected)
-      .then((res) => {
-        if (isMounted && res.success && res.data) {
+    startTransition(async () => {
+      try {
+        const res = await getCognitiveReportAction(selected);
+        if (!isMounted) return;
+
+        if (res.success && res.data) {
           setReport(res.data);
           setIsFallback(!!res.isFallback);
-        } else if (isMounted) {
-          // Fallback seguro se falhar
+        } else {
           setReport(generateFallbackReport(selected.metrics.avgAttention ?? 50, false));
           setIsFallback(true);
         }
-      })
-      .catch(() => {
+      } catch {
         if (isMounted) {
           setReport(generateFallbackReport(selected.metrics.avgAttention ?? 50, false));
           setIsFallback(true);
         }
-      })
-      .finally(() => {
-        if (isMounted) setLoadingAi(false);
-      });
+      }
+    });
 
     return () => {
       isMounted = false;
@@ -164,7 +162,7 @@ export function DashboardClient({ races }: { races: RaceSummary[] }) {
 
       {/* 4. SEÇÃO DO NEUROCOACH AI (LARGURA TOTAL) */}
       <section className="pt-2">
-        {loadingAi ? (
+        {isPending ? (
           <div className="rounded-2xl border border-border bg-card/30 p-8 text-center animate-pulse text-fg-muted">
             <span className="text-xl inline-block mb-2">🧠</span>
             <p className="text-sm font-medium text-fg-strong">
