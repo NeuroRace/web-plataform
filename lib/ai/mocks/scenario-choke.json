@@ -1,0 +1,44 @@
+{
+  "playerSummary": {
+    "racePlayerId": "rp_lucas_slot1_uuid",
+    "raceId": "race_01_uuid",
+    "slot": 1,
+    "startedAt": "2026-08-27T18:00:00.000Z",
+    "finishedAt": "2026-08-27T18:01:02.400Z",
+    "metrics": {
+      "avgAttention": 64.2,
+      "peakAttention": 92.0,
+      "focusZonePct": 61.7,
+      "avgMeditation": 48.0,
+      "durationSeconds": 62.4,
+      "sampleCount": 62
+    }
+  },
+  "opponentSummary": {
+    "racePlayerId": "rp_gabriel_slot2_uuid",
+    "raceId": "race_01_uuid",
+    "slot": 2,
+    "startedAt": "2026-08-27T18:00:00.000Z",
+    "finishedAt": "2026-08-27T18:01:00.300Z",
+    "metrics": {
+      "avgAttention": 74.8,
+      "peakAttention": 88.0,
+      "focusZonePct": 75.0,
+      "avgMeditation": 51.2,
+      "durationSeconds": 60.3,
+      "sampleCount": 60
+    }
+  },
+  "extractedFeatures": {
+    "result": "DEFEAT",
+    "timeDeltaSeconds": 2.1,
+    "stabilityStdDev": 18.4,
+    "chokeDetected": true,
+    "chokeTimestampSecond": 42,
+    "attentionSlices": [
+      { "phase": "Início (0-20s)", "avgAttention": 82.5, "avgMeditation": 52.0 },
+      { "phase": "Meio (21-40s)", "avgAttention": 76.0, "avgMeditation": 45.0 },
+      { "phase": "Final (41-62s)", "avgAttention": 34.0, "avgMeditation": 47.0 }
+    ]
+  }
+}
