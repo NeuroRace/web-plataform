@@ -18,7 +18,7 @@ cp .env.example .env.local     # já vem com as 2 chaves públicas do projeto
 npm run dev                    # http://localhost:3000
 ```
 - **Porta 3000 é obrigatória:** o Supabase Auth só libera `http://localhost:3000` nas Redirect URLs — em outra porta os redirects de confirmação/login quebram.
-- **`/dashboard` é protegido** (`proxy.ts` → `lib/supabase/middleware.ts`: sem sessão → `/login`). O banco começa vazio; para ver o dashboard com dados, use `scripts/seed-demo.mjs` para um e-mail confirmado e logue com ele. **Não existe banco local:** o alvo é o que você passar em `SEED_SUPABASE_URL` (obrigatória, sem fallback), e as corridas vão com `source=bot`, fora do ranking público (NEU-74).
+- **`/dashboard` é protegido** (`proxy.ts` → `lib/supabase/middleware.ts`: sem sessão → `/login`). O banco começa vazio; para ver o dashboard com dados, use `scripts/seed-demo.mjs` para um e-mail confirmado e logue com ele. **Não existe banco local:** o alvo é o que você passar em `SEED_SUPABASE_URL` (obrigatória, sem fallback), e as corridas vão com `source=bot`, fora do ranking público (NEU-74). Corridas semeadas **antes** dessa correção foram gravadas como `real` e continuam no ranking até a limpeza de dados do cloud (NEU-78).
 - `proxy.ts` é o **middleware do Next 16** (renomeado de `middleware.ts` na v16): renova a sessão Supabase e protege `/dashboard`.
 
 ## Testar (prova de não-regressão)

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { buildRace, resolveSeedConfig, validate } from "./seed-demo.mjs";
 
@@ -36,6 +37,17 @@ describe("buildRace (NEU-74)", () => {
 
   it("marca a corrida como bot, para ficar fora do ranking público", () => {
     expect(buildRace(0, cfg).source).toBe("bot");
+  });
+
+  it("não reaproveita IDs de seeds antigos (gravados como real): cria corridas novas como bot", () => {
+    // IDs que o seeder antigo gerava: det(`${email}|idem|${i}`) / det(`${email}|raceid|${i}`).
+    const legacy = (seed) => {
+      const h = createHash("sha1").update(seed).digest("hex");
+      return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
+    };
+    const r = buildRace(0, cfg);
+    expect(r.idempotency_key).not.toBe(legacy("demo@example.com|idem|0"));
+    expect(r.race_id).not.toBe(legacy("demo@example.com|raceid|0"));
   });
 
   it("continua gerando payload válido e determinístico", () => {

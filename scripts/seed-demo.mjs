@@ -22,7 +22,8 @@
 // o dashboard mostrar os dados (a RLS liga players.user_id no confirm do e-mail).
 
 import { createHash } from "node:crypto";
-import { pathToFileURL } from "node:url";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 // Lê a configuração do ambiente. Falha cedo, em vez de adivinhar alvo ou e-mail.
 export function resolveSeedConfig(env) {
@@ -101,8 +102,11 @@ export function buildRace(i, { email, nRaces }) {
 
   return {
     schema_version: "1.0",
-    idempotency_key: det(`${email}|idem|${i}`),
-    race_id: det(`${email}|raceid|${i}`),
+    // Namespace "bot" nos IDs: seeds antigos gravaram estes mesmos e-mails com
+    // source="real". Reusar os IDs devolveria "duplicate" e deixaria as corridas
+    // antigas no ranking; com IDs novos, o seed cria corridas bot novas.
+    idempotency_key: det(`${email}|bot|idem|${i}`),
+    race_id: det(`${email}|bot|raceid|${i}`),
     player_slot: 1,
     player_email: email,
     player_uuid: null,
@@ -210,7 +214,8 @@ async function main() {
 }
 
 // Só executa quando rodado direto (`node scripts/seed-demo.mjs`), não ao importar nos testes.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// realpath dos dois lados: via symlink/junction/subst o argv[1] não bate com o import.meta.url.
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   main().catch((e) => {
     console.error("Erro:", e.message);
     process.exit(1);
