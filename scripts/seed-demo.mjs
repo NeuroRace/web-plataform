@@ -4,37 +4,43 @@
 // Não escreve nada no projeto; só faz POST no backend. Idempotente: usa UUIDs
 // determinísticos por corrida, então rodar de novo NÃO duplica (retorna "duplicate").
 //
+// ATENÇÃO (NEU-74): o alvo é SEMPRE explícito. Não há fallback para o .env.local
+// nem para a URL de produção — quem roda escolhe conscientemente onde grava.
+// As corridas vão com source="bot": aparecem no dashboard pessoal, mas ficam
+// FORA do ranking público (get_leaderboard filtra source='real').
+//
 // Uso (PowerShell):
+//   $env:SEED_SUPABASE_URL="https://<ref>.supabase.co"; $env:SEED_EMAIL="voce@exemplo.com"
 //   $env:EDGE_INGEST_TOKEN="<token>"; node scripts/seed-demo.mjs
 //   # ou, se só tiver a service_role key:
 //   $env:SUPABASE_SERVICE_ROLE_KEY="<key>"; node scripts/seed-demo.mjs
 //
-// Opcionais: $env:SEED_EMAIL (default abaixo), $env:SEED_RACES (default 7).
+// Obrigatórias: SEED_SUPABASE_URL (exceto no dry-run) e SEED_EMAIL.
+// Opcionais: SEED_RACES (default 7), SEED_DRY=1 (só valida, não envia).
 //
 // IMPORTANTE: o e-mail precisa já estar cadastrado E confirmado no Supabase para
 // o dashboard mostrar os dados (a RLS liga players.user_id no confirm do e-mail).
 
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 
-const EMAIL = (process.env.SEED_EMAIL || "guirochabianchini@gmail.com")
-  .trim()
-  .toLowerCase();
-const N_RACES = Number(process.env.SEED_RACES || 7);
-
-const EDGE_TOKEN = process.env.EDGE_INGEST_TOKEN || "";
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-
-// URL do backend: lê do .env.local do front, com fallback no valor conhecido.
-function readSupabaseUrl() {
-  try {
-    const env = readFileSync(new URL("../.env.local", import.meta.url), "utf8");
-    const m = env.match(/NEXT_PUBLIC_SUPABASE_URL=(.+)/);
-    if (m) return m[1].trim();
-  } catch {}
-  return "https://wtaulbdkgrnrtbfezaxw.supabase.co";
+// Lê a configuração do ambiente. Falha cedo, em vez de adivinhar alvo ou e-mail.
+export function resolveSeedConfig(env) {
+  const email = (env.SEED_EMAIL || "").trim().toLowerCase();
+  if (!email) throw new Error("Defina SEED_EMAIL (e-mail cadastrado e confirmado que vai receber as corridas).");
+  const dry = Boolean(env.SEED_DRY);
+  const baseUrl = (env.SEED_SUPABASE_URL || "").trim().replace(/\/+$/, "");
+  if (!dry && !baseUrl)
+    throw new Error("Defina SEED_SUPABASE_URL: o seeder não escolhe o banco sozinho (NEU-74).");
+  return {
+    email,
+    dry,
+    baseUrl,
+    nRaces: Number(env.SEED_RACES || 7),
+    edgeToken: env.EDGE_INGEST_TOKEN || "",
+    serviceKey: env.SUPABASE_SERVICE_ROLE_KEY || "",
+  };
 }
-const BASE_URL = readSupabaseUrl();
 
 // ---- helpers determinísticos ----------------------------------------------
 function det(seed) {
@@ -53,8 +59,8 @@ function rng(seedStr) {
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 // ---- gera uma corrida (telemetria 1 amostra/seg, curvas suaves) -------------
-function buildRace(i) {
-  const rand = rng(`${EMAIL}|race|${i}`);
+export function buildRace(i, { email, nRaces }) {
+  const rand = rng(`${email}|race|${i}`);
   // foco médio sobe ao longo das corridas (mostra evolução no gráfico)
   const baseAtt = 42 + i * 4.5 + rand() * 6;
   const dur = 70 + Math.floor(rand() * 80); // 70..150s
@@ -62,7 +68,7 @@ function buildRace(i) {
   // espalha as corridas nas últimas semanas; mais antigas primeiro
   const dayMs = 86_400_000;
   const startedAt =
-    Date.now() - (N_RACES - i) * 3.4 * dayMs - Math.floor(rand() * 6) * 3_600_000;
+    Date.now() - (nRaces - i) * 3.4 * dayMs - Math.floor(rand() * 6) * 3_600_000;
   const startedMs = Math.round(startedAt);
   const finishedMs = startedMs + dur * 1000;
 
@@ -95,12 +101,13 @@ function buildRace(i) {
 
   return {
     schema_version: "1.0",
-    idempotency_key: det(`${EMAIL}|idem|${i}`),
-    race_id: det(`${EMAIL}|raceid|${i}`),
+    idempotency_key: det(`${email}|idem|${i}`),
+    race_id: det(`${email}|raceid|${i}`),
     player_slot: 1,
-    player_email: EMAIL,
+    player_email: email,
     player_uuid: null,
-    source: "real",
+    // "bot": fica fora do ranking público (NEU-74). Nunca "real" para dado fabricado.
+    source: "bot",
     started_at: startedMs,
     finished_at: finishedMs,
     telemetry_points: points,
@@ -108,25 +115,25 @@ function buildRace(i) {
 }
 
 // ---- envio ------------------------------------------------------------------
-async function send(payload) {
-  if (EDGE_TOKEN) {
-    const res = await fetch(`${BASE_URL}/functions/v1/ingest-race`, {
+async function send(payload, { baseUrl, edgeToken, serviceKey }) {
+  if (edgeToken) {
+    const res = await fetch(`${baseUrl}/functions/v1/ingest-race`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-edge-ingest-token": EDGE_TOKEN,
+        "x-edge-ingest-token": edgeToken,
       },
       body: JSON.stringify(payload),
     });
     return { code: res.status, body: await res.text() };
   }
-  if (SERVICE_KEY) {
-    const res = await fetch(`${BASE_URL}/rest/v1/rpc/ingest_race`, {
+  if (serviceKey) {
+    const res = await fetch(`${baseUrl}/rest/v1/rpc/ingest_race`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        apikey: SERVICE_KEY,
-        authorization: `Bearer ${SERVICE_KEY}`,
+        apikey: serviceKey,
+        authorization: `Bearer ${serviceKey}`,
       },
       body: JSON.stringify({ payload }),
     });
@@ -138,7 +145,7 @@ async function send(payload) {
 }
 
 // validação local espelhando contract.ts (pra pegar erro antes de enviar)
-function validate(p) {
+export function validate(p) {
   const errs = [];
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (p.schema_version !== "1.0") errs.push("schema_version");
@@ -160,11 +167,12 @@ function validate(p) {
 }
 
 async function main() {
-  if (process.env.SEED_DRY) {
-    console.log(`DRY-RUN → ${EMAIL} | ${N_RACES} corridas | backend ${BASE_URL}\n`);
+  const cfg = resolveSeedConfig(process.env);
+  if (cfg.dry) {
+    console.log(`DRY-RUN → ${cfg.email} | ${cfg.nRaces} corridas | backend ${cfg.baseUrl || "(não definido)"}\n`);
     let bad = 0;
-    for (let i = 0; i < N_RACES; i++) {
-      const p = buildRace(i);
+    for (let i = 0; i < cfg.nRaces; i++) {
+      const p = buildRace(i, cfg);
       const errs = validate(p);
       const avg = Math.round(
         p.telemetry_points.reduce((a, x) => a + x.attention, 0) / p.telemetry_points.length,
@@ -176,21 +184,21 @@ async function main() {
       if (errs.length) bad++;
     }
     console.log(`\n${bad === 0 ? "Todos os payloads válidos ✓" : bad + " inválidos ✗"}`);
-    console.log("Amostra do 1º ponto:", JSON.stringify(buildRace(0).telemetry_points[0]));
+    console.log("Amostra do 1º ponto:", JSON.stringify(buildRace(0, cfg).telemetry_points[0]));
     return;
   }
 
-  const mode = EDGE_TOKEN ? "Edge Function (x-edge-ingest-token)" : "RPC (service_role)";
-  console.log(`Seed demo → ${EMAIL}  | ${N_RACES} corridas | via ${mode}`);
-  console.log(`Backend: ${BASE_URL}\n`);
+  const mode = cfg.edgeToken ? "Edge Function (x-edge-ingest-token)" : "RPC (service_role)";
+  console.log(`Seed demo → ${cfg.email}  | ${cfg.nRaces} corridas (source=bot) | via ${mode}`);
+  console.log(`Backend: ${cfg.baseUrl}\n`);
 
   let ok = 0;
-  for (let i = 0; i < N_RACES; i++) {
-    const payload = buildRace(i);
-    const { code, body } = await send(payload);
+  for (let i = 0; i < cfg.nRaces; i++) {
+    const payload = buildRace(i, cfg);
+    const { code, body } = await send(payload, cfg);
     const tag = code >= 200 && code < 300 ? "OK " : "ERRO";
     console.log(
-      `[${tag}] corrida ${i + 1}/${N_RACES}  http=${code}  pts=${payload.telemetry_points.length}  ${body.slice(0, 120)}`,
+      `[${tag}] corrida ${i + 1}/${cfg.nRaces}  http=${code}  pts=${payload.telemetry_points.length}  ${body.slice(0, 120)}`,
     );
     if (code >= 200 && code < 300) ok++;
     else if (i === 0) {
@@ -198,10 +206,13 @@ async function main() {
       process.exit(1);
     }
   }
-  console.log(`\nConcluído: ${ok}/${N_RACES} aceitas. Abra /dashboard logado como ${EMAIL}.`);
+  console.log(`\nConcluído: ${ok}/${cfg.nRaces} aceitas. Abra /dashboard logado como ${cfg.email}.`);
 }
 
-main().catch((e) => {
-  console.error("Erro:", e.message);
-  process.exit(1);
-});
+// Só executa quando rodado direto (`node scripts/seed-demo.mjs`), não ao importar nos testes.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((e) => {
+    console.error("Erro:", e.message);
+    process.exit(1);
+  });
+}
