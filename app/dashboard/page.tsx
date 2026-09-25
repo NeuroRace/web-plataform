@@ -5,6 +5,8 @@ import { buildRaceSummaries, type TelemetryRow, type RaceSummary } from "@/lib/m
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DisplayNameForm } from "@/components/ranking/DisplayNameForm";
+import { ConsentPanel } from "@/components/privacy/ConsentPanel";
+import { hasValidConsent, readConsent } from "@/lib/consent";
 
 export const metadata: Metadata = { title: "Meu Desempenho" };
 
@@ -63,6 +65,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   if (!user) redirect("/login?next=/dashboard");
 
   const email = user.email ?? "";
+  // NEU-103: consentimento LGPD (provisório no user_metadata até a NEU-98).
+  const consent = readConsent(user.user_metadata);
+  const coachEnabled = hasValidConsent(user.user_metadata);
 
   const [{ data: racePlayers }, { data: telemetry }, { data: profile }] =
     await Promise.all([
@@ -102,11 +107,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         />
       </div>
 
+      <div className="mt-4">
+        <ConsentPanel consent={consent} />
+      </div>
+
       <div className="mt-8">
         {summaries.length === 0 ? (
           <EmptyState email={email} />
         ) : (
-          <DashboardClient races={summaries} />
+          <DashboardClient races={summaries} coachEnabled={coachEnabled} />
         )}
       </div>
     </div>

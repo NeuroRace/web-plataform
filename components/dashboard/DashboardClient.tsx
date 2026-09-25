@@ -17,7 +17,14 @@ import { CognitiveFeedbackCard } from "@/components/ai/cognitive-feedback-card";
 import { getCognitiveReportAction } from "@/lib/ai/actions/generate-report.action";
 import { generateFallbackReport, type CognitiveReportOutput } from "@/lib/ai/schemas/cognitive-report.schema";
 
-export function DashboardClient({ races }: { races: RaceSummary[] }) {
+export function DashboardClient({
+  races,
+  coachEnabled,
+}: {
+  races: RaceSummary[];
+  /** NEU-103: só com consentimento LGPD válido. O gate real está na server action. */
+  coachEnabled: boolean;
+}) {
   // `races` chega ordenado por started_at ascendente.
   const [selectedId, setSelectedId] = useState(
     races[races.length - 1]?.racePlayerId,
@@ -33,7 +40,7 @@ export function DashboardClient({ races }: { races: RaceSummary[] }) {
 
   // Dispara a IA sempre que a corrida selecionada mudar
   useEffect(() => {
-    if (!selected) return;
+    if (!selected || !coachEnabled) return;
 
     let isMounted = true;
 
@@ -45,6 +52,9 @@ export function DashboardClient({ races }: { races: RaceSummary[] }) {
         if (res.success && res.data) {
           setReport(res.data);
           setIsFallback(!!res.isFallback);
+        } else if (res.reason) {
+          // Sessão ou consentimento: sem relatório, nem heurístico.
+          setReport(null);
         } else {
           setReport(generateFallbackReport(selected.metrics.avgAttention ?? 50, false));
           setIsFallback(true);
@@ -60,7 +70,7 @@ export function DashboardClient({ races }: { races: RaceSummary[] }) {
     return () => {
       isMounted = false;
     };
-  }, [selectedId, selected]);
+  }, [selectedId, selected, coachEnabled]);
 
   const raceAverages = races
     .map((r) => r.metrics.avgAttention)
@@ -162,7 +172,15 @@ export function DashboardClient({ races }: { races: RaceSummary[] }) {
 
       {/* 4. SEÇÃO DO NEUROCOACH AI (LARGURA TOTAL) */}
       <section className="pt-2">
-        {isPending ? (
+        {!coachEnabled ? (
+          <div className="rounded-2xl border border-border bg-card/30 p-6 text-center text-sm text-fg-muted">
+            <p className="font-medium text-fg-strong">NeuroCoach desligado</p>
+            <p className="mt-1">
+              A análise da IA só roda com a sua autorização. Você pode dar o aceite
+              no quadro de privacidade, no topo da página.
+            </p>
+          </div>
+        ) : isPending ? (
           <div className="rounded-2xl border border-border bg-card/30 p-8 text-center animate-pulse text-fg-muted">
             <span className="text-xl inline-block mb-2">🧠</span>
             <p className="text-sm font-medium text-fg-strong">
