@@ -19,11 +19,12 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => ({ get: () => null }),
 }));
 
-async function submitSignup(email: string) {
+async function submitSignup(email: string, { consent = true } = {}) {
   const user = userEvent.setup();
   render(<AuthForm mode="signup" />);
   await user.type(screen.getByLabelText(/e-mail/i), email);
   await user.type(screen.getByLabelText(/senha/i), "senha-forte-123");
+  if (consent) await user.click(screen.getByRole("checkbox", { name: /autorizo/i }));
   await user.click(screen.getByRole("button", { name: /criar conta/i }));
 }
 
@@ -49,6 +50,33 @@ describe("AuthForm (cadastro)", () => {
     await submitSignup("Novo@Exemplo.com");
     expect(mocks.push).toHaveBeenCalledWith("/confirmar?email=novo%40exemplo.com");
     expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("NEU-103: sem marcar a autorização, não cria a conta", async () => {
+    await submitSignup("novo@exemplo.com", { consent: false });
+    expect(await screen.findByRole("alert")).toHaveTextContent(/autorizar/i);
+    expect(mocks.signUp).not.toHaveBeenCalled();
+  });
+
+  it("NEU-103: o checkbox tem link para a política de privacidade", () => {
+    render(<AuthForm mode="signup" />);
+    expect(screen.getByRole("link", { name: /política de privacidade/i })).toHaveAttribute(
+      "href",
+      "/privacidade",
+    );
+  });
+
+  it("NEU-103: com a autorização, grava o consentimento v1 (canal web) no cadastro", async () => {
+    mocks.signUp.mockResolvedValue({ data: { user: { id: "u1", identities: [{ id: "i1" }] }, session: null }, error: null });
+    await submitSignup("novo@exemplo.com");
+    const consent = mocks.signUp.mock.calls[0][0].options.data.lgpd_consent;
+    expect(consent).toMatchObject({ term_version: "v1", channel: "web", revoked_at: null });
+    expect(Date.parse(consent.granted_at)).not.toBeNaN();
+  });
+
+  it("NEU-103: login não mostra o checkbox de autorização", () => {
+    render(<AuthForm mode="login" />);
+    expect(screen.queryByRole("checkbox")).toBeNull();
   });
 
   it("erro do Supabase continua traduzido", async () => {

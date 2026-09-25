@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { buttonClass } from "@/components/ui/Button";
+import { CONSENT_METADATA_KEY, buildWebConsent } from "@/lib/consent";
 
 function translateError(message: string): string {
   const m = message.toLowerCase();
@@ -28,6 +29,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // NEU-85: e-mail já cadastrado. O Supabase (proteção contra enumeração) responde ao
@@ -39,9 +41,16 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError(null);
     setExistingAccount(false);
+
+    // NEU-103: o cadastro liga as corridas (dado de EEG) à conta, então exige aceite.
+    if (isSignup && !consent) {
+      setError("Para criar a conta, é preciso autorizar o uso dos seus dados de EEG.");
+      return;
+    }
+
+    setLoading(true);
 
     const supabase = createClient();
     const normalized = email.trim().toLowerCase();
@@ -52,6 +61,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+          data: { [CONSENT_METADATA_KEY]: buildWebConsent() },
         },
       });
       if (error) {
@@ -132,6 +142,33 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             <p className="text-xs text-fg-muted">Mínimo de 6 caracteres.</p>
           )}
         </div>
+
+        {isSignup && (
+          <div className="flex items-start gap-3 rounded-lg border border-border bg-bg/60 p-4 text-left">
+            <input
+              id="consent"
+              type="checkbox"
+              checked={consent}
+              onChange={(e) => setConsent(e.target.checked)}
+              aria-describedby="consent-hint"
+              className="mt-0.5 h-4 w-4 shrink-0 accent-cyan"
+            />
+            <div className="space-y-1">
+              <label htmlFor="consent" className="text-sm leading-snug text-fg">
+                Autorizo o uso dos meus dados de EEG (atenção e relaxamento) para
+                ver meu desempenho, aparecer no ranking e receber a análise da IA.
+              </label>
+              <p id="consent-hint" className="text-xs text-fg-muted">
+                Guardamos os dados segundo a segundo por 90 dias. Você pode retirar a
+                autorização quando quiser. Veja a{" "}
+                <Link href="/privacidade" target="_blank" className="text-cyan underline">
+                  política de privacidade
+                </Link>
+                .
+              </p>
+            </div>
+          </div>
+        )}
 
         {error && (
           <p
