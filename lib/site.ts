@@ -9,12 +9,12 @@ export const site = {
   description:
     "Performance cognitiva gamificada: controle um jogo com o poder do seu foco. Neurofeedback em tempo real via EEG. Projeto do NEXT FIAP Festival.",
   url: "https://neurorace.vercel.app", // placeholder — domínio definido perto do deploy
+  /** Contato de privacidade / titular (LGPD). Mesmo e-mail do termo v1 (ADR 0003). */
+  privacyContact: "breq@breq.com.br",
   event: {
     name: "NEXT FIAP 2026",
     /** Link de votação — ativar quando o NEXT 2026 publicar. Vazio => banner mostra "em breve". */
     voteUrl: "",
-    /** Data de uso dos dados (LGPD). Atualizar quando o NEXT 2026 confirmar a data. */
-    dataDate: "08/11/2026",
   },
   social: {
     linkedinShare:
