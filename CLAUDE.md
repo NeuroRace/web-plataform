@@ -37,6 +37,18 @@ Cobertura honesta: os ~11 arquivos de teste cobrem quase só componentes **decor
 - **Chaves:** só a **publishable** (`NEXT_PUBLIC_*`, pública, vai no bundle). **Nunca** use/commite a `service_role` (só o seeder local a usa, via `.env.local`).
 - **Config central** em `lib/site.ts` (nav, frases, equipe). Métricas do dashboard em `lib/metrics.ts` são **provisórias** (pendentes do backend).
 
+## NeuroCoach (IA Coach 2.0, NEU-115)
+- **O código decide, a IA só escreve.**
+  - `lib/coach/analyze.ts` é puro e determinístico: arquétipo, badges, momentos (sinal suavizado de 5 s), evolução e meta.
+  - Limiares em `lib/coach/rules.ts` (`THRESHOLDS`), calibrados em 28/09 com as corridas reais.
+- **Entrada:** `lib/coach/action.ts` recebe **só o `racePlayerId`**, exige sessão e lê pela RLS. Nunca aceite dado de corrida vindo do cliente.
+- **Texto:**
+  - Groq (`GROQ_API_KEY`) só com consentimento LGPD válido (`lib/consent.ts`) e corrida com dados suficientes;
+  - cache `unstable_cache` por hash dos fatos + `PROMPT_VERSION`;
+  - travas contra termos inventados e números fora dos fatos;
+  - qualquer falha → `templateNarrative`.
+- **Mudou o prompt?** Suba o `PROMPT_VERSION`. **Smoke:** `npx tsx scripts/coach-smoke.ts`.
+
 ## Segredos / env
 - `.env*` é gitignored. Copie `.env.example` → `.env.local`. As 2 vars `NEXT_PUBLIC_*` são públicas; a `service_role` (só seeder) é **segredo** — nunca commitar.
 
