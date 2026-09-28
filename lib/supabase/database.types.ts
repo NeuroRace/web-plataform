@@ -142,6 +142,28 @@ export type Database = {
         }
         Relationships: []
       }
+      ranking_windows: {
+        // NEU-110 (contrato proposto em 28/09). Regenerar os types depois do deploy.
+        Row: {
+          ends_at: string
+          id: string
+          name: string
+          starts_at: string
+        }
+        Insert: {
+          ends_at: string
+          id?: string
+          name: string
+          starts_at: string
+        }
+        Update: {
+          ends_at?: string
+          id?: string
+          name?: string
+          starts_at?: string
+        }
+        Relationships: []
+      }
       telemetry_points: {
         Row: {
           attention: number | null
@@ -189,7 +211,13 @@ export type Database = {
     }
     Functions: {
       get_leaderboard: {
-        Args: { p_limit?: number; p_metric?: string }
+        // p_from/p_to: NEU-110 (contrato proposto em 28/09). Regenerar os types depois do deploy.
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_metric?: string
+          p_to?: string
+        }
         Returns: {
           display_name: string
           rank: number
