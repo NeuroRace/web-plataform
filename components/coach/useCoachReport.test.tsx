@@ -39,6 +39,22 @@ describe("useCoachReport", () => {
     expect(mocks.action).toHaveBeenCalledTimes(2);
   });
 
+  it("A→B→A rápido não repete a chamada da corrida ainda em voo", async () => {
+    const resolvers: Record<string, (v: unknown) => void> = {};
+    mocks.action.mockImplementation((id: string) => new Promise((res) => (resolvers[id] = res)));
+    const { result, rerender } = renderHook(({ id }) => useCoachReport(id), {
+      initialProps: { id: "a" as string | undefined },
+    });
+    rerender({ id: "b" });
+    rerender({ id: "a" });
+    await act(async () => {
+      resolvers.a({ ok: false, reason: "not_found" });
+      resolvers.b({ ok: false, reason: "error" });
+    });
+    await waitFor(() => expect(result.current.result).toEqual({ ok: false, reason: "not_found" }));
+    expect(mocks.action).toHaveBeenCalledTimes(2);
+  });
+
   it("sem corrida selecionada → null, sem chamar", () => {
     const { result } = renderHook(() => useCoachReport(undefined));
     expect(result.current.result).toBeNull();

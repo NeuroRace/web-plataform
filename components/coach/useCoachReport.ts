@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { getCoachReportAction } from "@/lib/coach/action";
 import type { CoachActionResult } from "@/lib/coach/types";
 
@@ -14,10 +14,13 @@ export function useCoachReport(racePlayerId: string | undefined): {
 } {
   const [results, setResults] = useState<Record<string, CoachActionResult>>({});
   const [, startTransition] = useTransition();
+  // Corridas com chamada em andamento: trocar A→B→A rápido não dispara A de novo. O resultado
+  // é guardado por id, então chegar depois da troca não mostra dado da corrida errada.
+  const inFlight = useRef(new Set<string>());
 
   useEffect(() => {
-    if (!racePlayerId || results[racePlayerId]) return;
-    let alive = true;
+    if (!racePlayerId || results[racePlayerId] || inFlight.current.has(racePlayerId)) return;
+    inFlight.current.add(racePlayerId);
     startTransition(async () => {
       let res: CoachActionResult;
       try {
@@ -25,11 +28,9 @@ export function useCoachReport(racePlayerId: string | undefined): {
       } catch {
         res = { ok: false, reason: "error" };
       }
-      if (alive) setResults((prev) => ({ ...prev, [racePlayerId]: res }));
+      inFlight.current.delete(racePlayerId);
+      setResults((prev) => ({ ...prev, [racePlayerId]: res }));
     });
-    return () => {
-      alive = false;
-    };
   }, [racePlayerId, results]);
 
   const retry = useCallback(() => {
