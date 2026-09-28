@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { loadOwnTelemetry } from "@/lib/supabase/telemetry";
 import { buildRaceSummaries, type TelemetryRow, type RaceSummary } from "@/lib/metrics";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 import { EmptyState } from "@/components/dashboard/EmptyState";
@@ -64,16 +65,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   const email = user.email ?? "";
 
-  const [{ data: racePlayers }, { data: telemetry }, { data: profile }] =
+  const [{ data: racePlayers }, telemetry, { data: profile }] =
     await Promise.all([
       supabase
         .from("race_players")
         .select("id, race_id, player_slot, started_at, finished_at")
         .order("started_at", { ascending: true }),
-      supabase
-        .from("telemetry_points")
-        .select("race_player_id, t, attention, meditation")
-        .order("t", { ascending: true }),
+      // Paginado (NEU-115): consulta única é cortada em 1000 linhas pelo PostgREST.
+      // Erro de leitura mantém o comportamento anterior: painel sem telemetria.
+      loadOwnTelemetry(supabase).catch(() => [] as TelemetryRow[]),
       supabase
         .from("profiles")
         .select("display_name")
@@ -83,7 +83,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   const realSummaries = buildRaceSummaries(
     racePlayers ?? [],
-    (telemetry ?? []) as TelemetryRow[],
+    telemetry,
   );
 
   const summaries = isDemo && realSummaries.length === 0 ? DEMO_SUMMARIES : realSummaries;

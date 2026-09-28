@@ -1,8 +1,9 @@
 "use server";
 
 import { hasValidConsent } from "@/lib/consent";
-import { buildRaceSummaries, type TelemetryRow } from "@/lib/metrics";
+import { buildRaceSummaries } from "@/lib/metrics";
 import { createClient } from "@/lib/supabase/server";
+import { loadOwnTelemetry } from "@/lib/supabase/telemetry";
 import { analyzeRace } from "./analyze";
 import { cachedAiNarrative } from "./narrative-ai";
 import { templateNarrative } from "./narrative-template";
@@ -23,30 +24,21 @@ export async function getCoachReportAction(racePlayerId: string): Promise<CoachA
     } = await supabase.auth.getUser();
     if (!user) return { ok: false, reason: "unauthenticated" };
 
-    // A série da corrida selecionada vem filtrada pelo id: o histórico inteiro pode passar
-    // do limite de 1000 linhas do PostgREST, a corrida analisada não pode ser truncada.
-    const [players, allTelemetry, raceTelemetry] = await Promise.all([
+    // Telemetria paginada: uma consulta única é cortada em 1000 linhas pelo PostgREST e
+    // truncaria a corrida analisada e a evolução em relação às anteriores.
+    const [players, telemetry] = await Promise.all([
       supabase
         .from("race_players")
         .select("id, race_id, player_slot, started_at, finished_at")
         .order("started_at", { ascending: true }),
-      supabase
-        .from("telemetry_points")
-        .select("race_player_id, t, attention, meditation")
-        .order("t", { ascending: true }),
-      supabase
-        .from("telemetry_points")
-        .select("race_player_id, t, attention, meditation")
-        .eq("race_player_id", racePlayerId)
-        .order("t", { ascending: true }),
+      loadOwnTelemetry(supabase),
     ]);
-    if (players.error || allTelemetry.error || raceTelemetry.error) throw new Error("neurocoach_load_failed");
+    if (players.error) throw new Error("neurocoach_load_failed");
 
     const rows = players.data ?? [];
     if (!rows.some((r) => r.id === racePlayerId)) return { ok: false, reason: "not_found" };
 
-    const others = ((allTelemetry.data ?? []) as TelemetryRow[]).filter((p) => p.race_player_id !== racePlayerId);
-    const history = buildRaceSummaries(rows, [...others, ...((raceTelemetry.data ?? []) as TelemetryRow[])]);
+    const history = buildRaceSummaries(rows, telemetry);
     const race = history.find((r) => r.racePlayerId === racePlayerId)!;
 
     const facts = analyzeRace(race, history);

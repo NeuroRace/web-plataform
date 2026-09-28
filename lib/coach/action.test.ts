@@ -6,12 +6,14 @@ const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
   from: vi.fn(),
   cachedAiNarrative: vi.fn(),
+  loadOwnTelemetry: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: async () => ({ auth: { getUser: mocks.getUser }, from: mocks.from }),
 }));
 vi.mock("@/lib/coach/narrative-ai", () => ({ cachedAiNarrative: mocks.cachedAiNarrative }));
+vi.mock("@/lib/supabase/telemetry", () => ({ loadOwnTelemetry: mocks.loadOwnTelemetry }));
 
 import { getCoachReportAction } from "@/lib/coach/action";
 
@@ -25,27 +27,18 @@ const telemetry = M.map((a, i) => ({
   meditation: 50,
 }));
 
-/** race_players: select().order(); telemetry_points: select().order() e select().eq().order(). */
+/** race_players: select().order(); telemetria: loader paginado (lib/supabase/telemetry). */
 function mockTables(opts: { loadError?: boolean; telemetryForRace?: typeof telemetry } = {}) {
-  const eqCalls: unknown[][] = [];
-  mocks.from.mockImplementation((table: string) => {
-    const rows = table === "race_players" ? racePlayers : telemetry;
-    const result = opts.loadError ? { data: null, error: { message: "boom" } } : { data: rows, error: null };
-    const order = () => Promise.resolve(result);
-    return {
-      select: () => ({
-        order,
-        eq: (...args: unknown[]) => {
-          eqCalls.push(args);
-          return {
-            order: () =>
-              Promise.resolve(opts.loadError ? result : { data: opts.telemetryForRace ?? telemetry, error: null }),
-          };
-        },
-      }),
-    };
+  mocks.from.mockImplementation(() => ({
+    select: () => ({
+      order: () =>
+        Promise.resolve(opts.loadError ? { data: null, error: { message: "boom" } } : { data: racePlayers, error: null }),
+    }),
+  }));
+  mocks.loadOwnTelemetry.mockImplementation(async () => {
+    if (opts.loadError) throw new Error("telemetry_load_failed: boom");
+    return opts.telemetryForRace ?? telemetry;
   });
-  return eqCalls;
 }
 
 const consented = { [CONSENT_METADATA_KEY]: buildWebConsent(new Date("2026-09-28T12:00:00.000Z")) };
@@ -79,11 +72,35 @@ describe("getCoachReportAction (spec §6)", () => {
     await expect(getCoachReportAction("rp-de-outra-pessoa")).resolves.toEqual({ ok: false, reason: "not_found" });
   });
 
-  it("carrega a telemetria da corrida selecionada filtrando pelo id (limite de 1000 linhas)", async () => {
+  it("carrega a telemetria pelo loader paginado (limite de 1000 linhas do PostgREST)", async () => {
     mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: {} } } });
-    const eqCalls = mockTables();
-    await getCoachReportAction("rp-1");
-    expect(eqCalls).toEqual([["race_player_id", "rp-1"]]);
+    mockTables();
+    const res = await getCoachReportAction("rp-1");
+    expect(mocks.loadOwnTelemetry).toHaveBeenCalledTimes(1);
+    expect(res.ok && res.facts.sampleCount).toBe(30);
+  });
+
+  it("corrida anterior completa entra na evolução", async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: {} } } });
+    const prevStart = "2026-09-30T16:50:00.000Z";
+    const prevRows = flat(50, 20).map((a, i) => ({
+      race_player_id: "rp-0",
+      t: new Date(Date.parse(prevStart) + i * 1000).toISOString(),
+      attention: a,
+      meditation: 50,
+    }));
+    mocks.from.mockImplementation(() => ({
+      select: () => ({
+        order: () =>
+          Promise.resolve({
+            data: [{ id: "rp-0", race_id: "r-0", player_slot: 1, started_at: prevStart, finished_at: "2026-09-30T16:50:40.000Z" }, ...racePlayers],
+            error: null,
+          }),
+      }),
+    }));
+    mocks.loadOwnTelemetry.mockResolvedValue([...prevRows, ...telemetry]);
+    const res = await getCoachReportAction("rp-1");
+    expect(res.ok && res.facts.progress.previous).toEqual({ attentionDelta: 6.2, durationDelta: -10 });
   });
 
   it("sem consentimento → texto-modelo, sem chamar a IA", async () => {
