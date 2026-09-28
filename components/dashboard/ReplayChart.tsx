@@ -9,8 +9,12 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  ReferenceArea,
+  ReferenceDot,
 } from "recharts";
+import type { Moment } from "@/lib/coach/types";
 import type { SeriesPoint } from "@/lib/metrics";
+import { momentMarkers } from "./replay-markers";
 
 const tooltipStyle = {
   background: "#1e3247",
@@ -19,7 +23,9 @@ const tooltipStyle = {
   color: "#f0f6fc",
 } as const;
 
-export function ReplayChart({ series }: { series: SeriesPoint[] }) {
+export function ReplayChart({ series, moments }: { series: SeriesPoint[]; moments?: Moment[] }) {
+  // NeuroCoach (NEU-115): faixa da melhor sequência de foco + momentos ①②③.
+  const markers = moments?.length ? momentMarkers(series, moments) : null;
   return (
     <ResponsiveContainer width="100%" height={280}>
       <AreaChart data={series} margin={{ top: 8, right: 12, bottom: 0, left: -16 }}>
@@ -67,6 +73,26 @@ export function ReplayChart({ series }: { series: SeriesPoint[] }) {
           fill="transparent"
           connectNulls
         />
+        {markers?.area && (
+          <ReferenceArea
+            x1={markers.area.x1}
+            x2={markers.area.x2}
+            fill="#38bdf8"
+            fillOpacity={0.12}
+            stroke="none"
+          />
+        )}
+        {markers?.dots.map((d) => (
+          <ReferenceDot
+            key={d.label}
+            x={d.x}
+            y={d.y}
+            r={9}
+            fill="#0b1622"
+            stroke="#38bdf8"
+            label={{ value: d.label, position: "center", fill: "#f0f6fc", fontSize: 11 }}
+          />
+        ))}
       </AreaChart>
     </ResponsiveContainer>
   );

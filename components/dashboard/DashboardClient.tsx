@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useState } from "react";
 import { StatCard } from "./StatCard";
 import { EvolutionChart } from "./EvolutionChart";
 import { ReplayChart } from "./ReplayChart";
@@ -11,11 +11,8 @@ import {
   type RaceSummary,
 } from "@/lib/metrics";
 import { cn } from "@/lib/utils";
-
-// Componentes e Serviços de IA
-import { CognitiveFeedbackCard } from "@/components/ai/cognitive-feedback-card";
-import { getCognitiveReportAction } from "@/lib/ai/actions/generate-report.action";
-import { generateFallbackReport, type CognitiveReportOutput } from "@/lib/ai/schemas/cognitive-report.schema";
+import { CoachPanel } from "@/components/coach/CoachPanel";
+import { useCoachReport } from "@/components/coach/useCoachReport";
 
 export function DashboardClient({ races }: { races: RaceSummary[] }) {
   // `races` chega ordenado por started_at ascendente.
@@ -26,41 +23,8 @@ export function DashboardClient({ races }: { races: RaceSummary[] }) {
     races.find((r) => r.racePlayerId === selectedId) ??
     races[races.length - 1];
 
-  // Estado da IA com useTransition (sem setState síncrono no effect)
-  const [report, setReport] = useState<CognitiveReportOutput | null>(null);
-  const [isPending, startTransition] = useTransition();
-  const [isFallback, setIsFallback] = useState(false);
-
-  // Dispara a IA sempre que a corrida selecionada mudar
-  useEffect(() => {
-    if (!selected) return;
-
-    let isMounted = true;
-
-    startTransition(async () => {
-      try {
-        const res = await getCognitiveReportAction(selected);
-        if (!isMounted) return;
-
-        if (res.success && res.data) {
-          setReport(res.data);
-          setIsFallback(!!res.isFallback);
-        } else {
-          setReport(generateFallbackReport(selected.metrics.avgAttention ?? 50, false));
-          setIsFallback(true);
-        }
-      } catch {
-        if (isMounted) {
-          setReport(generateFallbackReport(selected.metrics.avgAttention ?? 50, false));
-          setIsFallback(true);
-        }
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedId, selected]);
+  // NeuroCoach 2.0 (NEU-115): o servidor analisa pelo id; memo por corrida no hook.
+  const coach = useCoachReport(selected?.racePlayerId);
 
   const raceAverages = races
     .map((r) => r.metrics.avgAttention)
@@ -102,7 +66,10 @@ export function DashboardClient({ races }: { races: RaceSummary[] }) {
       {/* 3. Seção do Replay + Lista Lateral de Corridas */}
       <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
         <Card title={`🧠 Replay — ${formatRaceDate(selected.startedAt)}`}>
-          <ReplayChart series={selected.series} />
+          <ReplayChart
+            series={selected.series}
+            moments={coach?.ok ? coach.facts.moments : undefined}
+          />
           <div className="mt-4 grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
             <Mini label="Pico" value={formatPct(selected.metrics.peakAttention)} />
             <Mini label="Média" value={formatPct(selected.metrics.avgAttention)} />
@@ -160,19 +127,8 @@ export function DashboardClient({ races }: { races: RaceSummary[] }) {
         </Card>
       </div>
 
-      {/* 4. SEÇÃO DO NEUROCOACH AI (LARGURA TOTAL) */}
-      <section className="pt-2">
-        {isPending ? (
-          <div className="rounded-2xl border border-border bg-card/30 p-8 text-center animate-pulse text-fg-muted">
-            <span className="text-xl inline-block mb-2">🧠</span>
-            <p className="text-sm font-medium text-fg-strong">
-              O NeuroCoach está analisando o padrão neurocognitivo desta corrida...
-            </p>
-          </div>
-        ) : report ? (
-          <CognitiveFeedbackCard report={report} isFallback={isFallback} />
-        ) : null}
-      </section>
+      {/* 4. NeuroCoach (largura total) */}
+      <CoachPanel result={coach} />
     </div>
   );
 }
