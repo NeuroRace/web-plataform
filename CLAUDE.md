@@ -43,7 +43,8 @@ Cobertura honesta: os ~11 arquivos de teste cobrem quase só componentes **decor
   - Limiares em `lib/coach/rules.ts` (`THRESHOLDS`), calibrados em 28/09 com as corridas reais.
 - **Entrada:** `lib/coach/action.ts` recebe **só o `racePlayerId`**, exige sessão e lê pela RLS. Nunca aceite dado de corrida vindo do cliente.
 - **Texto:**
-  - Groq (`GROQ_API_KEY`) só com consentimento LGPD válido (`lib/consent.ts`) e corrida com dados suficientes;
+  - Groq só com `NEUROCOACH_AI_ENABLED=true` **e** `GROQ_API_KEY`, consentimento LGPD válido (`lib/consent.ts`) e corrida com dados suficientes;
+  - **em produção, só ligar depois de verificar a política de retenção/treino da Groq** (ADR 0003 §6, NEU-94);
   - cache `unstable_cache` por hash dos fatos + `PROMPT_VERSION`;
   - travas contra termos inventados e números fora dos fatos;
   - qualquer falha → `templateNarrative`.

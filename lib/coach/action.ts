@@ -57,8 +57,12 @@ export async function getCoachReportAction(racePlayerId: string): Promise<CoachA
 
 async function narrate(facts: CoachFacts, metadata: unknown): Promise<CoachNarrative> {
   const apiKey = process.env.GROQ_API_KEY;
+  // Liga/desliga explícito, além da chave: o ADR 0003 (§6, NEU-94) exige verificar a política de
+  // retenção/treino da Groq antes de mandar dado de EEG, mesmo agregado. Uma chave que já exista
+  // na Vercel (IA Coach antiga) não pode ligar a IA sozinha.
+  const aiEnabled = process.env.NEUROCOACH_AI_ENABLED === "true";
   // LLM só com consentimento LGPD (NEU-94/ADR 0003) e só quando há o que analisar.
-  if (apiKey && facts.quality === "ok" && hasValidConsent(metadata)) {
+  if (aiEnabled && apiKey && facts.quality === "ok" && hasValidConsent(metadata)) {
     try {
       const ai = await cachedAiNarrative(facts, apiKey);
       if (ai) return { ...ai, source: "ai" };

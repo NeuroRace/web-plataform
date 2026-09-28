@@ -47,10 +47,12 @@ const aiText = { headline: "Texto gerado pela IA ok", summary: "Resumo da IA com
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.GROQ_API_KEY = "test-key";
+  process.env.NEUROCOACH_AI_ENABLED = "true";
   mocks.cachedAiNarrative.mockResolvedValue(aiText);
 });
 afterEach(() => {
   delete process.env.GROQ_API_KEY;
+  delete process.env.NEUROCOACH_AI_ENABLED;
 });
 
 describe("getCoachReportAction (spec §6)", () => {
@@ -111,6 +113,19 @@ describe("getCoachReportAction (spec §6)", () => {
     expect(res.ok && res.facts.archetype).toBe("OSCILADOR");
     expect(mocks.cachedAiNarrative).not.toHaveBeenCalled();
   });
+
+  it.each([undefined, "", "false", "1"])(
+    "chave presente mas NEUROCOACH_AI_ENABLED=%s → texto-modelo (ADR 0003 §6: IA só depois de verificar a Groq)",
+    async (flag) => {
+      if (flag === undefined) delete process.env.NEUROCOACH_AI_ENABLED;
+      else process.env.NEUROCOACH_AI_ENABLED = flag;
+      mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: consented } } });
+      mockTables();
+      const res = await getCoachReportAction("rp-1");
+      expect(res.ok && res.narrative.source).toBe("template");
+      expect(mocks.cachedAiNarrative).not.toHaveBeenCalled();
+    },
+  );
 
   it("sem GROQ_API_KEY → texto-modelo", async () => {
     delete process.env.GROQ_API_KEY;
