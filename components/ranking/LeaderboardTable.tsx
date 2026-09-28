@@ -1,3 +1,6 @@
+"use client";
+
+import { motion } from "motion/react";
 import { formatDuration } from "@/lib/metrics";
 import { cn } from "@/lib/utils";
 
@@ -22,23 +25,32 @@ function rankTone(rank: number): string {
 export function LeaderboardTable({
   rows,
   highlight,
+  size = "default",
+  caption = "Ranking por melhor tempo de corrida",
 }: {
   rows: LeaderboardRow[];
   /** Apelido do usuário logado, para marcar a linha dele. */
   highlight?: string | null;
+  /** `telao`: letra grande para TV no estande (NEU-111). */
+  size?: "default" | "telao";
+  caption?: string;
 }) {
+  const big = size === "telao";
   // display_name é citext no banco: a comparação aqui também ignora caixa.
   const mine = highlight?.trim().toLowerCase() ?? null;
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-left">
-        <caption className="sr-only">
-          Ranking por melhor tempo de corrida
-        </caption>
+        <caption className="sr-only">{caption}</caption>
         <thead>
-          <tr className="border-b border-hairline text-xs uppercase tracking-wider text-fg-muted">
-            <th scope="col" className="w-16 px-3 py-3 font-medium">
+          <tr
+            className={cn(
+              "border-b border-hairline uppercase tracking-wider text-fg-muted",
+              big ? "text-base" : "text-xs",
+            )}
+          >
+            <th scope="col" className={cn("px-3 py-3 font-medium", big ? "w-24" : "w-16")}>
               #
             </th>
             <th scope="col" className="px-3 py-3 font-medium">
@@ -55,8 +67,11 @@ export function LeaderboardTable({
               mine !== null && row.display_name.toLowerCase() === mine;
 
             return (
-              <tr
-                key={`${row.rank}-${row.display_name}`}
+              // layout: ao atualizar ao vivo, quem sobe de posição desliza em vez de pular.
+              <motion.tr
+                layout="position"
+                transition={{ duration: 0.35, ease: "easeOut" }}
+                key={row.display_name}
                 aria-current={isMine ? "true" : undefined}
                 className={cn(
                   "border-b border-hairline/60 transition-colors",
@@ -67,16 +82,18 @@ export function LeaderboardTable({
               >
                 <td
                   className={cn(
-                    "px-3 py-4 font-display text-xl font-bold tabular-nums",
+                    "px-3 font-display font-bold tabular-nums",
+                    big ? "py-5 text-4xl" : "py-4 text-xl",
                     rankTone(row.rank),
                   )}
                 >
                   {row.rank}
                 </td>
-                <td className="px-3 py-4">
+                <td className={cn("px-3", big ? "py-5" : "py-4")}>
                   <span
                     className={cn(
                       "font-medium",
+                      big && "text-3xl",
                       isMine ? "text-attention" : "text-fg-strong",
                     )}
                   >
@@ -88,10 +105,15 @@ export function LeaderboardTable({
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-4 text-right font-mono text-fg-strong tabular-nums">
+                <td
+                  className={cn(
+                    "px-3 text-right font-mono text-fg-strong tabular-nums",
+                    big ? "py-5 text-3xl" : "py-4",
+                  )}
+                >
                   {formatDuration(row.score)}
                 </td>
-              </tr>
+              </motion.tr>
             );
           })}
         </tbody>

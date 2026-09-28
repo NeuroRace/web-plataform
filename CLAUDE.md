@@ -37,11 +37,24 @@ Cobertura honesta: os ~11 arquivos de teste cobrem quase só componentes **decor
 - **Chaves:** só a **publishable** (`NEXT_PUBLIC_*`, pública, vai no bundle). **Nunca** use/commite a `service_role` (só o seeder a usa, via variável de ambiente no shell; nunca em arquivo versionado).
 - **Config central** em `lib/site.ts` (nav, frases, equipe). Métricas do dashboard em `lib/metrics.ts` são **provisórias** (pendentes do backend).
 
+## NeuroCoach (IA Coach 2.0, NEU-115)
+- **O código decide, a IA só escreve.**
+  - `lib/coach/analyze.ts` é puro e determinístico: arquétipo, badges, momentos (sinal suavizado de 5 s), evolução e meta.
+  - Limiares em `lib/coach/rules.ts` (`THRESHOLDS`), calibrados em 28/09 com as corridas reais.
+- **Entrada:** `lib/coach/action.ts` recebe **só o `racePlayerId`**, exige sessão e lê pela RLS. Nunca aceite dado de corrida vindo do cliente.
+- **Texto:**
+  - Groq só com `NEUROCOACH_AI_ENABLED=true` **e** `GROQ_API_KEY`, consentimento LGPD válido (`lib/consent.ts`) e corrida com dados suficientes;
+  - **em produção, só ligar depois de verificar a política de retenção/treino da Groq** (ADR 0003 §6, NEU-94);
+  - cache `unstable_cache` por hash dos fatos + `PROMPT_VERSION`;
+  - travas contra termos inventados e números fora dos fatos;
+  - qualquer falha → `templateNarrative`.
+- **Mudou o prompt?** Suba o `PROMPT_VERSION`. **Smoke:** `npx tsx scripts/coach-smoke.ts`.
+
 ## Segredos / env
 - `.env*` é gitignored. Copie `.env.example` → `.env.local`. As 2 vars `NEXT_PUBLIC_*` são públicas; a `service_role` (só seeder) é **segredo** — nunca commitar.
 
 ## Deploy
-Hospedado na **Vercel** (integração Git da Vercel, configurada fora do repo — não há `vercel.json` nem workflow). **Não verificado ao vivo** neste doc; `lib/site.ts` ainda usa a URL placeholder `neurorace.vercel.app`.
+Hospedado na **Vercel** (integração Git da Vercel, configurada fora do repo — não há `vercel.json` nem workflow). Produção: `https://neurorace-v2.vercel.app` (projeto Vercel `neurorace-v2`). `lib/site.ts` lê `NEXT_PUBLIC_SITE_URL` com essa URL como default (NEU-80); `neurorace.vercel.app` é deploy morto.
 
 ## Fluxo de trabalho
 Branch a partir de `main` + PR (worktree por padrão em implementação). Antes do commit: `npm run lint && npm test && npx tsc --noEmit`. **Há CI** (`.github/workflows/ci.yml`, desde o PR #4): roda lint + vitest + build + tsc em PR e push na `main`. Rode local mesmo assim — o gate não substitui o loop rápido.

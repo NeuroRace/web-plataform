@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { createClient } from "@/lib/supabase/server";
+import { loadRanking } from "@/lib/ranking-data";
+import { TELAO_LIMIT } from "@/lib/ranking";
 import { ButtonLink } from "@/components/ui/Button";
 import { Reveal } from "@/components/Reveal";
-import { LeaderboardTable } from "@/components/ranking/LeaderboardTable";
-import mascotWinner from "@/public/assets/images/mascot-winner.png";
+import { RankingBoard, type RankingTab } from "@/components/ranking/RankingBoard";
 
 export const metadata: Metadata = {
   title: "Ranking",
@@ -15,8 +15,24 @@ export const metadata: Metadata = {
 // Depende da sessão para destacar a linha do próprio jogador.
 export const dynamic = "force-dynamic";
 
-export default async function RankingPage() {
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+
+export default async function RankingPage({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams;
+  // Modo telão (NEU-111): /ranking?telao=1 — tela cheia para a TV do estande.
+  const telao = first(params.telao) === "1";
+  const aba = first(params.aba);
+  const initialTab: RankingTab | undefined =
+    aba === "evento" || aba === "rodada" ? aba : undefined;
+
   const supabase = await createClient();
+
+  if (telao) {
+    const snapshot = await loadRanking(supabase, new Date(), { limit: TELAO_LIMIT });
+    return <RankingBoard initial={snapshot} mode="telao" initialTab={initialTab} />;
+  }
 
   const {
     data: { user },
@@ -24,14 +40,14 @@ export default async function RankingPage() {
 
   // get_leaderboard é pública (security definer): funciona logado ou não.
   // O profile só é lido quando há sessão — a RLS escopa ao próprio usuário.
-  const [{ data: board, error }, { data: profile }] = await Promise.all([
-    supabase.rpc("get_leaderboard", { p_metric: "best_time", p_limit: 50 }),
+  const [snapshot, { data: profile }] = await Promise.all([
+    loadRanking(supabase),
     user
       ? supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
 
-  const rows = board ?? [];
+  const hasRows = snapshot.event.rows.length > 0;
   const myName = profile?.display_name ?? null;
   const precisaDeApelido = Boolean(user) && !myName;
 
@@ -63,37 +79,10 @@ export default async function RankingPage() {
       )}
 
       <div className="mt-8">
-        {error ? (
-          <p
-            role="alert"
-            className="rounded-card border border-border bg-surface/50 p-6 text-center text-fg"
-          >
-            Não consegui carregar o ranking agora. Tente recarregar a página.
-          </p>
-        ) : rows.length === 0 ? (
-          <div className="rounded-card border border-border bg-surface/40 p-8 text-center sm:p-10">
-            <Image
-              src={mascotWinner}
-              alt=""
-              className="mx-auto h-auto w-32 opacity-90"
-            />
-            <h2 className="mt-4 font-display text-2xl font-bold text-fg-strong">
-              O ranking ainda está vazio
-            </h2>
-            <p className="mx-auto mt-3 max-w-md leading-relaxed text-fg">
-              Ninguém completou uma corrida com apelido definido ainda. Jogue no
-              estande do NeuroRace e seja o primeiro a aparecer aqui.
-            </p>
-            <ButtonLink href="/sobre" variant="secondary" className="mt-6">
-              Conhecer o projeto
-            </ButtonLink>
-          </div>
-        ) : (
-          <LeaderboardTable rows={rows} highlight={myName} />
-        )}
+        <RankingBoard initial={snapshot} highlight={myName} initialTab={initialTab} />
       </div>
 
-      {!user && rows.length > 0 && (
+      {!user && hasRows && (
         <p className="mt-8 text-center text-sm text-fg-muted">
           <ButtonLink href="/login" variant="ghost">
             Entre na sua conta

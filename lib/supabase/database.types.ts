@@ -142,6 +142,30 @@ export type Database = {
         }
         Relationships: []
       }
+      ranking_windows: {
+        Row: {
+          created_at: string
+          ends_at: string
+          id: string
+          name: string
+          starts_at: string
+        }
+        Insert: {
+          created_at?: string
+          ends_at: string
+          id?: string
+          name: string
+          starts_at: string
+        }
+        Update: {
+          created_at?: string
+          ends_at?: string
+          id?: string
+          name?: string
+          starts_at?: string
+        }
+        Relationships: []
+      }
       telemetry_points: {
         Row: {
           attention: number | null
@@ -189,7 +213,12 @@ export type Database = {
     }
     Functions: {
       get_leaderboard: {
-        Args: { p_limit?: number; p_metric?: string }
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_metric?: string
+          p_to?: string
+        }
         Returns: {
           display_name: string
           rank: number
