@@ -22,6 +22,19 @@ describe("templateNarrative (spec §5.1)", () => {
     expect(templateNarrative(analyzeRace(r2, [r1, r2])).summary).toContain("seu foco médio subiu 10 pontos");
   });
 
+  it("manchetes não afirmam mais do que a regra do arquétipo garante", () => {
+    const headline = (attention: number[]) => {
+      const r = makeRace(attention);
+      return templateNarrative(analyzeRace(r, [r])).headline;
+    };
+    // HIPERFOCADO = média >= 60 (não "quase toda a corrida")
+    expect(headline(flat(70, 30))).toBe("Foco alto na média da corrida");
+    // SPRINTER = início >= fim + 10 (não necessariamente "largada forte")
+    expect(headline([...flat(52, 10), ...flat(46, 10), ...flat(42, 10)])).toBe("Começou mais focado do que terminou");
+    // EQUILIBRADO pode ter uma queda pontual (não "sem grandes quedas")
+    expect(headline(flat(55, 30))).toBe("Foco parecido do começo ao fim da corrida");
+  });
+
   it("insufficient explica o problema do sensor", () => {
     const race = makeRace(flat(60, 9));
     const n = templateNarrative(analyzeRace(race, [race]));

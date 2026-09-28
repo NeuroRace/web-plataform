@@ -6,12 +6,13 @@ export const BANNED_TERMS = /ultrapass|oponente|advers|posi[cç][aã]o|\bbeta\b|
 
 const HEADLINES: Record<Archetype, string> = {
   EM_AQUECIMENTO: "Corrida de aquecimento: a mente ainda pegando o ritmo",
-  HIPERFOCADO: "Foco lá em cima durante quase toda a corrida",
+  // Cada manchete só afirma o que a regra do arquétipo garante (rules.ts).
+  HIPERFOCADO: "Foco alto na média da corrida",
   ARRANQUE_CRESCENTE: "Você terminou mais forte do que começou",
-  SPRINTER: "Largada forte, com o foco caindo na reta final",
+  SPRINTER: "Começou mais focado do que terminou",
   OSCILADOR: "Foco em altos e baixos: picos rápidos e quedas rápidas",
   MESTRE_ZEN: "Calma e constância do começo ao fim",
-  EQUILIBRADO: "Corrida equilibrada, sem grandes quedas de foco",
+  EQUILIBRADO: "Foco parecido do começo ao fim da corrida",
 };
 
 function momentSentence(m: Moment): string {
