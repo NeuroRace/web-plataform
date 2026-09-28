@@ -68,13 +68,15 @@ async function narrate(facts: CoachFacts, metadata: unknown): Promise<CoachNarra
   // LLM só com consentimento LGPD (NEU-94/ADR 0003) e só quando há o que analisar.
   if (apiKey && facts.quality === "ok" && hasValidConsent(metadata)) {
     try {
-      return { ...(await cachedAiNarrative(facts, apiKey)), source: "ai" };
+      const ai = await cachedAiNarrative(facts, apiKey);
+      if (ai) return { ...ai, source: "ai" };
     } catch (err) {
+      // Sem a mensagem: ela pode trazer trecho da resposta do modelo (spec §5.2).
       console.warn(
         JSON.stringify({
           level: "warn",
           event: "neurocoach_ai_fallback",
-          message: err instanceof Error ? err.message : String(err),
+          error: err instanceof Error ? err.name : "unknown",
         }),
       );
     }

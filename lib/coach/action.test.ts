@@ -120,6 +120,25 @@ describe("getCoachReportAction (spec §6)", () => {
     expect(res.ok && res.narrative.source).toBe("template");
   });
 
+  it("IA reprovou a resposta (null do cache) → texto-modelo", async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: consented } } });
+    mockTables();
+    mocks.cachedAiNarrative.mockResolvedValue(null);
+    const res = await getCoachReportAction("rp-1");
+    expect(res.ok && res.narrative.source).toBe("template");
+  });
+
+  it("log do fallback não leva conteúdo da resposta da IA", async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: consented } } });
+    mockTables();
+    mocks.cachedAiNarrative.mockRejectedValue(new SyntaxError('Unexpected token in JSON at "texto secreto do modelo"'));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await getCoachReportAction("rp-1");
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0][0])).not.toContain("texto secreto");
+    warn.mockRestore();
+  });
+
   it("corrida com poucos dados não chama a IA", async () => {
     mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: consented } } });
     mockTables({ telemetryForRace: telemetry.slice(0, 5) });

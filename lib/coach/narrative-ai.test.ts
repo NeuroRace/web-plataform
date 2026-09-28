@@ -7,6 +7,7 @@ import {
   cachedAiNarrative,
   generateAiNarrative,
   narrativeCacheKey,
+  narrativeOrNull,
   numbersGrounded,
   parseNarrative,
   type CompletionFn,
@@ -50,6 +51,9 @@ describe("numbersGrounded", () => {
   it("aceita números dos fatos e números pequenos", () => {
     expect(numbersGrounded("foco 56, 10 s, 3 momentos", input)).toBe(true);
   });
+  it("aceita a escala do índice, a janela de 5 s e o limiar da zona de foco", () => {
+    expect(numbersGrounded("No índice de 0 a 100, sua média foi 56. Em 5 s você subiu, e a zona de foco começa em 60.", input)).toBe(true);
+  });
   it("recusa número inventado", () => {
     expect(numbersGrounded("seu foco foi 87", input)).toBe(false);
   });
@@ -86,6 +90,27 @@ describe("generateAiNarrative", () => {
   it("propaga a falha do modelo", async () => {
     const complete = vi.fn<CompletionFn>().mockRejectedValue(new Error("timeout"));
     await expect(generateAiNarrative(facts, { apiKey: "k", complete })).rejects.toThrow("timeout");
+  });
+});
+
+describe("narrativeOrNull — resposta reprovada vira null (cacheável); falha de rede propaga", () => {
+  it.each([
+    ["termo proibido", JSON.stringify({ ...good, headline: "Ultrapassagem decisiva no fim" })],
+    ["JSON inválido", "{headline:"],
+    ["vazio", null],
+  ])("%s → null", async (_, raw) => {
+    const complete = vi.fn<CompletionFn>().mockResolvedValue(raw as string | null);
+    await expect(narrativeOrNull(facts, { apiKey: "k", complete })).resolves.toBeNull();
+  });
+
+  it("resposta válida passa", async () => {
+    const complete = vi.fn<CompletionFn>().mockResolvedValue(JSON.stringify(good));
+    await expect(narrativeOrNull(facts, { apiKey: "k", complete })).resolves.toEqual(good);
+  });
+
+  it("falha de rede/timeout propaga (não é cacheada)", async () => {
+    const complete = vi.fn<CompletionFn>().mockRejectedValue(new Error("timeout"));
+    await expect(narrativeOrNull(facts, { apiKey: "k", complete })).rejects.toThrow("timeout");
   });
 });
 

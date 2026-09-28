@@ -59,9 +59,15 @@ export function narrativeCacheKey(input: LlmInput, model: string): string {
   return createHash("sha256").update(`${PROMPT_VERSION}|${model}|${JSON.stringify(input)}`).digest("hex");
 }
 
-/** Todo número do texto tem de estar nos fatos (ou ser pequeno, até 3). */
+/**
+ * Números sempre legítimos no texto, mesmo fora dos fatos: pequenas contagens, a janela
+ * de 5 s dos momentos, o limiar da zona de foco (60) e a escala do índice (0 a 100).
+ */
+const ALWAYS_ALLOWED = [0, 1, 2, 3, 4, 5, 60, 100];
+
+/** Todo número do texto tem de estar nos fatos ou em ALWAYS_ALLOWED. */
 export function numbersGrounded(text: string, input: LlmInput): boolean {
-  const allowed = new Set<number>([0, 1, 2, 3]);
+  const allowed = new Set<number>(ALWAYS_ALLOWED);
   for (const n of JSON.stringify(input).match(/-?\d+(?:\.\d+)?/g) ?? []) allowed.add(Math.abs(Number(n)));
   const found = text.match(/\d+(?:[.,]\d+)?/g) ?? [];
   return found.every((n) => allowed.has(Number(n.replace(",", "."))));
@@ -72,13 +78,29 @@ const OutputSchema = z.object({
   summary: z.string().trim().min(40).max(400),
 });
 
+/** A IA respondeu, mas a resposta foi reprovada (formato ou travas). Tende a se repetir: é cacheável. */
+export class NarrativeRejected extends Error {
+  constructor(public readonly code: string) {
+    super(code);
+    this.name = "NarrativeRejected";
+  }
+}
+
 export function parseNarrative(raw: string | null, input: LlmInput): { headline: string; summary: string } {
-  if (!raw) throw new Error("neurocoach_ai_empty");
+  if (!raw) throw new NarrativeRejected("neurocoach_ai_empty");
   const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-  const parsed = OutputSchema.parse(JSON.parse(cleaned));
+  let json: unknown;
+  try {
+    json = JSON.parse(cleaned);
+  } catch {
+    throw new NarrativeRejected("neurocoach_ai_invalid_json");
+  }
+  const result = OutputSchema.safeParse(json);
+  if (!result.success) throw new NarrativeRejected("neurocoach_ai_invalid_shape");
+  const parsed = result.data;
   const text = `${parsed.headline} ${parsed.summary}`;
-  if (BANNED_TERMS.test(text)) throw new Error("neurocoach_ai_banned_term");
-  if (!numbersGrounded(text, input)) throw new Error("neurocoach_ai_ungrounded_number");
+  if (BANNED_TERMS.test(text)) throw new NarrativeRejected("neurocoach_ai_banned_term");
+  if (!numbersGrounded(text, input)) throw new NarrativeRejected("neurocoach_ai_ungrounded_number");
   return parsed;
 }
 
@@ -113,14 +135,33 @@ export async function generateAiNarrative(
   return parseNarrative(raw, input);
 }
 
-/** 1 chamada por corrida: cache por hash dos fatos + versão do prompt + modelo. Erro não é cacheado. */
+/**
+ * Resposta reprovada → null (a action usa o texto-modelo). Só falha de rede/timeout propaga,
+ * e por isso só ela deixa de ser cacheada e é tentada de novo na próxima abertura.
+ */
+export async function narrativeOrNull(
+  facts: CoachFacts,
+  opts: Parameters<typeof generateAiNarrative>[1],
+): Promise<{ headline: string; summary: string } | null> {
+  try {
+    return await generateAiNarrative(facts, opts);
+  } catch (err) {
+    if (err instanceof NarrativeRejected) return null;
+    throw err;
+  }
+}
+
+/**
+ * 1 chamada por corrida: cache por hash dos fatos + versão do prompt + modelo, inclusive
+ * quando a resposta foi reprovada (null). Falha de rede não é cacheada.
+ */
 export async function cachedAiNarrative(
   facts: CoachFacts,
   apiKey: string,
   model: string = process.env.GROQ_MODEL || DEFAULT_MODEL,
-): Promise<{ headline: string; summary: string }> {
+): Promise<{ headline: string; summary: string } | null> {
   const key = narrativeCacheKey(buildLlmInput(facts), model);
-  const run = unstable_cache(() => generateAiNarrative(facts, { apiKey, model }), ["neurocoach-narrative", key], {
+  const run = unstable_cache(() => narrativeOrNull(facts, { apiKey, model }), ["neurocoach-narrative", key], {
     revalidate: false,
   });
   return run();
