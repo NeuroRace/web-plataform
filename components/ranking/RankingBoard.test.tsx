@@ -33,6 +33,7 @@ const semRodadas: RankingSnapshot = {
   event: { rows: [{ rank: 1, display_name: "PedroT", score: 29 }], error: false },
   round: null,
   previousWinner: null,
+  failed: false,
   fetchedAt: "2026-09-30T15:30:00.000Z",
 };
 
@@ -47,6 +48,7 @@ const comRodada: RankingSnapshot = {
   },
   round: { rows: [{ rank: 1, display_name: "Breq", score: 31 }], error: false },
   previousWinner: { rank: 1, display_name: "PedroT", score: 29 },
+  failed: false,
   fetchedAt: "2026-09-30T15:30:00.000Z",
 };
 
@@ -122,13 +124,54 @@ describe("RankingBoard", () => {
   });
 
   it("falha na atualização: mantém os últimos dados e avisa", async () => {
-    loadRanking.mockResolvedValue({ ...semRodadas, event: { rows: [], error: true } });
+    loadRanking.mockResolvedValue({
+      ...semRodadas,
+      event: { rows: [], error: true },
+      failed: true,
+    });
     render(<RankingBoard initial={semRodadas} />);
 
     await act(async () => {
       vi.advanceTimersByTime(15_000);
     });
     expect(screen.getByText("PedroT")).toBeInTheDocument();
+    expect(screen.getByText(/Sem conexão com o ranking/)).toBeInTheDocument();
+  });
+
+  it("falha só na rodada: mantém abas, rodada e lista, e avisa", async () => {
+    loadRanking.mockResolvedValue({
+      ...comRodada,
+      round: { rows: [], error: true },
+      failed: true,
+    });
+    render(<RankingBoard initial={comRodada} />);
+
+    await act(async () => {
+      vi.advanceTimersByTime(15_000);
+    });
+    expect(screen.getByRole("tab", { name: "Rodada atual" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("heading", { name: "Rodada 2" })).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /Breq/ })).toBeInTheDocument();
+    expect(screen.getByText(/Sem conexão com o ranking/)).toBeInTheDocument();
+  });
+
+  it("busca de rodadas fora do ar (snapshot sem rodadas e falho): não troca a tela", async () => {
+    loadRanking.mockResolvedValue({ ...semRodadas, failed: true });
+    render(<RankingBoard initial={comRodada} />);
+
+    await act(async () => {
+      vi.advanceTimersByTime(15_000);
+    });
+    expect(screen.getByRole("tablist")).toBeInTheDocument();
+    expect(screen.getByText(/Vencedor da Rodada 1/)).toBeInTheDocument();
+    expect(screen.getByText(/Sem conexão com o ranking/)).toBeInTheDocument();
+  });
+
+  it("snapshot inicial falho: já abre avisando", () => {
+    render(<RankingBoard initial={{ ...semRodadas, failed: true }} />);
     expect(screen.getByText(/Sem conexão com o ranking/)).toBeInTheDocument();
   });
 

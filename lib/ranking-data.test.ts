@@ -6,7 +6,7 @@ type RpcArgs = { p_metric?: string; p_limit?: number; p_from?: string; p_to?: st
 
 /** Supabase falso: só o que loadRanking usa (from().select().order() e rpc()). */
 function fakeClient(opts: {
-  windows?: RankingWindow[] | "missing";
+  windows?: RankingWindow[] | "missing" | "down";
   rpc?: (args: RpcArgs) => { data: unknown; error: unknown };
 }) {
   const rpc = vi.fn(async (_name: string, args: RpcArgs) =>
@@ -16,8 +16,10 @@ function fakeClient(opts: {
   );
   const order = vi.fn(async () =>
     opts.windows === "missing"
-      ? { data: null, error: { code: "42P01", message: "relation does not exist" } }
-      : { data: opts.windows ?? [], error: null },
+      ? { data: null, error: { code: "PGRST205", message: "not found in the schema cache" } }
+      : opts.windows === "down"
+        ? { data: null, error: { code: "", message: "HTTP 500" } }
+        : { data: opts.windows ?? [], error: null },
   );
   const client = {
     from: () => ({ select: () => ({ order }) }),
@@ -51,6 +53,15 @@ describe("loadRanking", () => {
     expect(snap.event.rows).toHaveLength(1);
     expect(rpc).toHaveBeenCalledTimes(1);
     expect(rpc).toHaveBeenCalledWith("get_leaderboard", { p_metric: "best_time", p_limit: 50 });
+    expect(snap.failed).toBe(false);
+  });
+
+  it("falha na busca das rodadas (não é tabela inexistente): snapshot marcado como falho", async () => {
+    const { client } = fakeClient({ windows: "down" });
+    const snap = await loadRanking(client, noon30);
+
+    expect(snap.failed).toBe(true);
+    expect(snap.windows).toBeNull();
   });
 
   it("com rodadas: evento desde a 1ª rodada, rodada atual com período e vencedor da anterior", async () => {
@@ -60,6 +71,7 @@ describe("loadRanking", () => {
     expect(snap.windows?.current?.id).toBe("2");
     expect(snap.round?.rows).toHaveLength(1);
     expect(snap.previousWinner?.display_name).toBe("Breq");
+    expect(snap.failed).toBe(false);
 
     const calls = rpc.mock.calls.map(([, args]) => args);
     expect(calls).toContainEqual({ p_metric: "best_time", p_limit: 50, p_from: r1.starts_at });
@@ -92,6 +104,39 @@ describe("loadRanking", () => {
       rows: [{ rank: 1, display_name: "Ester", score: 40 }],
       error: false,
     });
+    expect(snap.failed).toBe(false);
+  });
+
+  it("outra falha no evento com período não cai no ranking geral: mantém rodadas e marca falha", async () => {
+    const { client, rpc } = fakeClient({
+      windows: [r1, r2],
+      rpc: (args) =>
+        args.p_from === r1.starts_at && !args.p_to
+          ? { data: null, error: { code: "", message: "HTTP 500" } }
+          : { data: [{ rank: 1, display_name: "Breq", score: 30 }], error: null },
+    });
+    const snap = await loadRanking(client, noon30);
+
+    expect(snap.windows?.current?.id).toBe("2");
+    expect(snap.event.error).toBe(true);
+    expect(snap.failed).toBe(true);
+    // Nenhuma busca sem período (que traria o ranking de sempre).
+    expect(rpc.mock.calls.every(([, args]) => args.p_from)).toBe(true);
+  });
+
+  it("falha só na rodada atual ou no vencedor anterior também marca o snapshot", async () => {
+    for (const failing of [r2, r1]) {
+      const { client } = fakeClient({
+        windows: [r1, r2],
+        rpc: (args) =>
+          args.p_from === failing.starts_at && args.p_to === failing.ends_at
+            ? { data: null, error: { code: "", message: "HTTP 500" } }
+            : { data: [{ rank: 1, display_name: "Breq", score: 30 }], error: null },
+      });
+      const snap = await loadRanking(client, noon30);
+      expect(snap.event.error).toBe(false);
+      expect(snap.failed).toBe(true);
+    }
   });
 
   it("erro na busca do ranking vira error=true, sem lançar", async () => {
@@ -101,6 +146,7 @@ describe("loadRanking", () => {
     });
     const snap = await loadRanking(client, noon30);
     expect(snap.event).toEqual({ rows: [], error: true });
+    expect(snap.failed).toBe(true);
   });
 
   it("repassa o limite (telão mostra menos linhas)", async () => {

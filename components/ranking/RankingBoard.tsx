@@ -43,7 +43,8 @@ export function RankingBoard({
 }) {
   const telao = mode === "telao";
   const [snap, setSnap] = useState(initial);
-  const [stale, setStale] = useState(false);
+  // Snapshot do servidor já incompleto: avisa desde o início.
+  const [stale, setStale] = useState(initial.failed);
   const [tab, setTab] = useState<RankingTab>(
     initialTab ?? (initial.windows?.current ? "rodada" : "evento"),
   );
@@ -59,7 +60,8 @@ export function RankingBoard({
       const next = await loadRanking(createClient(), new Date(), {
         limit: telao ? TELAO_LIMIT : undefined,
       });
-      if (next.event.error) {
+      // Qualquer busca falhou (rodadas, evento, rodada ou vencedor): mantém a última tela.
+      if (next.failed) {
         setStale(true);
         return;
       }

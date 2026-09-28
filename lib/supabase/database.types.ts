@@ -143,20 +143,22 @@ export type Database = {
         Relationships: []
       }
       ranking_windows: {
-        // NEU-110 (contrato proposto em 28/09). Regenerar os types depois do deploy.
         Row: {
+          created_at: string
           ends_at: string
           id: string
           name: string
           starts_at: string
         }
         Insert: {
+          created_at?: string
           ends_at: string
           id?: string
           name: string
           starts_at: string
         }
         Update: {
+          created_at?: string
           ends_at?: string
           id?: string
           name?: string
@@ -211,7 +213,6 @@ export type Database = {
     }
     Functions: {
       get_leaderboard: {
-        // p_from/p_to: NEU-110 (contrato proposto em 28/09). Regenerar os types depois do deploy.
         Args: {
           p_from?: string
           p_limit?: number
