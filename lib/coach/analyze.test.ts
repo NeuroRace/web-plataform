@@ -57,6 +57,11 @@ describe("analyzeRace — métricas e momentos (spec §4.2/§4.3)", () => {
     expect(analyzeRace(r, [r]).moments).toEqual([{ kind: "peak", t: 7, value: 90 }]);
   });
 
+  it("pico dentro da melhor sequência não vira momento separado (marcador duplicado)", () => {
+    const r = makeRace([...flat(68, 15), ...flat(55, 15), ...flat(42, 15)]);
+    expect(analyzeRace(r, [r]).moments).toEqual([{ kind: "streak", t: 0, tEnd: 17, value: 18 }]);
+  });
+
   it("leituras nulas são ignoradas e os momentos mantêm o segundo real", () => {
     const withNulls: Array<number | null> = [null, null, ...M];
     const r = makeRace(withNulls);

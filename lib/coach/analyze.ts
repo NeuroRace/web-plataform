@@ -103,7 +103,9 @@ export function analyzeRace(race: RaceSummary, history: RaceSummary[]): CoachFac
   if (candidates.length < 3) {
     const peak = Math.max(...att);
     const i = att.indexOf(peak);
-    candidates.push({ kind: "peak", t: points[i].t, value: peak });
+    // Pico dentro da melhor sequência seria um marcador duplicado no replay: fica de fora.
+    const insideStreak = run !== null && run.length >= MIN_STREAK_MOMENT && i >= run.start && i <= run.end;
+    if (!insideStreak) candidates.push({ kind: "peak", t: points[i].t, value: peak });
   }
   const moments = candidates.slice(0, 3).sort((a, b) => a.t - b.t);
 
