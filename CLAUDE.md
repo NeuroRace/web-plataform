@@ -41,7 +41,7 @@ Cobertura honesta: os ~11 arquivos de teste cobrem quase só componentes **decor
 - `.env*` é gitignored. Copie `.env.example` → `.env.local`. As 2 vars `NEXT_PUBLIC_*` são públicas; a `service_role` (só seeder) é **segredo** — nunca commitar.
 
 ## Deploy
-Hospedado na **Vercel** (integração Git da Vercel, configurada fora do repo — não há `vercel.json` nem workflow). **Não verificado ao vivo** neste doc; `lib/site.ts` ainda usa a URL placeholder `neurorace.vercel.app`.
+Hospedado na **Vercel** (integração Git da Vercel, configurada fora do repo — não há `vercel.json` nem workflow). Produção: `https://neurorace-v2.vercel.app` (projeto Vercel `neurorace-v2`). `lib/site.ts` lê `NEXT_PUBLIC_SITE_URL` com essa URL como default (NEU-80); `neurorace.vercel.app` é deploy morto.
 
 ## Fluxo de trabalho
 Branch a partir de `main` + PR (worktree por padrão em implementação). Antes do commit: `npm run lint && npm test && npx tsc --noEmit`. **Há CI** (`.github/workflows/ci.yml`, desde o PR #4): roda lint + vitest + build + tsc em PR e push na `main`. Rode local mesmo assim — o gate não substitui o loop rápido.
