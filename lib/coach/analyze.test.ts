@@ -62,6 +62,15 @@ describe("analyzeRace — métricas e momentos (spec §4.2/§4.3)", () => {
     expect(analyzeRace(r, [r]).moments).toEqual([{ kind: "streak", t: 0, tEnd: 17, value: 18 }]);
   });
 
+  it("momento a até 2 s de outro já escolhido não entra (marcadores sobrepostos no replay)", () => {
+    // Rampa 20→80: a maior subida (aos 19 s) coincide com o início da sequência (18 s).
+    const r = makeRace([...flat(20, 15), ...flat(80, 20)]);
+    expect(analyzeRace(r, [r]).moments).toEqual([
+      { kind: "peak", t: 15, value: 80 },
+      { kind: "streak", t: 18, tEnd: 34, value: 17 },
+    ]);
+  });
+
   it("leituras nulas são ignoradas e os momentos mantêm o segundo real", () => {
     const withNulls: Array<number | null> = [null, null, ...M];
     const r = makeRace(withNulls);

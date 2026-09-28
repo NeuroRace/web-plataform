@@ -10,6 +10,7 @@ const SMOOTH_WINDOW = 5;
 const STREAK_THRESHOLD = 60;
 const MIN_STREAK_MOMENT = 3;
 const MOMENT_DELTA = 20;
+const MIN_MOMENT_GAP = 2;
 
 function diff(a: number | null, b: number | null): number | null {
   return a === null || b === null ? null : round1(a - b);
@@ -90,22 +91,27 @@ export function analyzeRace(race: RaceSummary, history: RaceSummary[]): CoachFac
   const worst = deltas.reduce<{ index: number; delta: number } | null>((m, d) => (!m || d.delta < m.delta ? d : m), null);
   const best = deltas.reduce<{ index: number; delta: number } | null>((m, d) => (!m || d.delta > m.delta ? d : m), null);
 
+  // Um momento a até MIN_MOMENT_GAP s de outro já escolhido seria um marcador sobreposto
+  // no replay dizendo quase a mesma coisa: fica de fora.
   const candidates: Moment[] = [];
+  const add = (m: Moment) => {
+    if (!candidates.some((c) => Math.abs(c.t - m.t) <= MIN_MOMENT_GAP)) candidates.push(m);
+  };
   if (run && run.length >= MIN_STREAK_MOMENT) {
-    candidates.push({ kind: "streak", t: points[run.start].t, tEnd: points[run.end].t, value: run.length });
+    add({ kind: "streak", t: points[run.start].t, tEnd: points[run.end].t, value: run.length });
   }
   if (worst && worst.delta <= -MOMENT_DELTA) {
-    candidates.push({ kind: "drop", t: points[worst.index].t, value: Math.round(worst.delta) });
+    add({ kind: "drop", t: points[worst.index].t, value: Math.round(worst.delta) });
   }
   if (best && best.delta >= MOMENT_DELTA) {
-    candidates.push({ kind: "rise", t: points[best.index].t, value: Math.round(best.delta) });
+    add({ kind: "rise", t: points[best.index].t, value: Math.round(best.delta) });
   }
   if (candidates.length < 3) {
     const peak = Math.max(...att);
     const i = att.indexOf(peak);
     // Pico dentro da melhor sequência seria um marcador duplicado no replay: fica de fora.
     const insideStreak = run !== null && run.length >= MIN_STREAK_MOMENT && i >= run.start && i <= run.end;
-    if (!insideStreak) candidates.push({ kind: "peak", t: points[i].t, value: peak });
+    if (!insideStreak) add({ kind: "peak", t: points[i].t, value: peak });
   }
   const moments = candidates.slice(0, 3).sort((a, b) => a.t - b.t);
 
