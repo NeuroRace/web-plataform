@@ -6,6 +6,25 @@ function signed(v: number): string {
   return `${v > 0 ? "+" : ""}${formatDecimal(v)}`;
 }
 
+/** Chip de evolução: ▲ = melhorou, ▼ = piorou. Para o tempo, menor é melhor. */
+function DeltaChip({ value, unit, lowerIsBetter }: { value: number; unit: "pts" | "s"; lowerIsBetter?: boolean }) {
+  const improved = lowerIsBetter ? value < 0 : value > 0;
+  const same = value === 0;
+  const what = unit === "pts" ? "foco" : "tempo";
+  const label = unit === "pts" ? `${signed(value)} pts de foco` : `${signed(value)} s no tempo`;
+  const amount = `${formatDecimal(Math.abs(value))} ${unit === "pts" ? "pontos" : "segundos"}`;
+  return (
+    <span
+      aria-label={same ? `${what}: igual` : `${what}: ${improved ? "melhorou" : "piorou"} ${amount}`}
+      className={`rounded-md border px-2 py-0.5 ${
+        same ? "border-border text-fg-strong" : improved ? "border-emerald-500/40 text-emerald-400" : "border-amber-500/40 text-amber-400"
+      }`}
+    >
+      {same ? label : `${label} ${improved ? "▲" : "▼"}`}
+    </span>
+  );
+}
+
 export function CoachCard({ facts, narrative }: { facts: CoachFacts; narrative: CoachNarrative }) {
   const prev = facts.progress.previous;
   return (
@@ -49,12 +68,8 @@ export function CoachCard({ facts, narrative }: { facts: CoachFacts; narrative: 
       {prev && (prev.attentionDelta !== null || prev.durationDelta !== null) && (
         <div className="mt-5 flex flex-wrap gap-2 text-xs">
           <span className="text-fg-muted">vs corrida anterior:</span>
-          {prev.attentionDelta !== null && (
-            <span className="rounded-md border border-border px-2 py-0.5 text-fg-strong">{`${signed(prev.attentionDelta)} pts de foco`}</span>
-          )}
-          {prev.durationDelta !== null && (
-            <span className="rounded-md border border-border px-2 py-0.5 text-fg-strong">{`${signed(prev.durationDelta)} s no tempo`}</span>
-          )}
+          {prev.attentionDelta !== null && <DeltaChip value={prev.attentionDelta} unit="pts" />}
+          {prev.durationDelta !== null && <DeltaChip value={prev.durationDelta} unit="s" lowerIsBetter />}
         </div>
       )}
 

@@ -33,9 +33,23 @@ describe("CoachCard", () => {
         narrative={{ headline: "Manchete longa ok", summary: "Resumo.", source: "template" }}
       />,
     );
-    expect(screen.getByText("+10 pts de foco")).toBeInTheDocument();
-    expect(screen.getByText("-10 s no tempo")).toBeInTheDocument();
+    // Mais foco e menos tempo = melhorou (▲) nos dois.
+    expect(screen.getByText("+10 pts de foco ▲")).toBeInTheDocument();
+    expect(screen.getByText("-10 s no tempo ▲")).toBeInTheDocument();
     expect(screen.getByText(/resumo automático/i)).toBeInTheDocument();
+  });
+
+  it("evolução para pior aparece com ▼", () => {
+    const r1 = makeRace(flat(60, 20), { id: "r1", startedAt: "2026-09-30T17:00:00.000Z", durationSeconds: 60 });
+    const r2 = makeRace(flat(55, 20), { id: "r2", startedAt: "2026-09-30T17:10:00.000Z", durationSeconds: 65 });
+    render(
+      <CoachCard
+        facts={analyzeRace(r2, [r1, r2])}
+        narrative={{ headline: "Manchete longa ok", summary: "Resumo.", source: "template" }}
+      />,
+    );
+    expect(screen.getByText("-5 pts de foco ▼")).toHaveAttribute("aria-label", "foco: piorou 5 pontos");
+    expect(screen.getByText("+5 s no tempo ▼")).toHaveAttribute("aria-label", "tempo: piorou 5 segundos");
   });
 
   it("poucos dados: sem arquétipo, momentos nem meta", () => {
