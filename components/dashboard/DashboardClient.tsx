@@ -24,7 +24,7 @@ export function DashboardClient({ races }: { races: RaceSummary[] }) {
     races[races.length - 1];
 
   // NeuroCoach 2.0 (NEU-115): o servidor analisa pelo id; memo por corrida no hook.
-  const coach = useCoachReport(selected?.racePlayerId);
+  const { result: coach, retry: retryCoach } = useCoachReport(selected?.racePlayerId);
 
   const raceAverages = races
     .map((r) => r.metrics.avgAttention)
@@ -128,7 +128,7 @@ export function DashboardClient({ races }: { races: RaceSummary[] }) {
       </div>
 
       {/* 4. NeuroCoach (largura total) */}
-      <CoachPanel result={coach} />
+      <CoachPanel result={coach} onRetry={retryCoach} />
     </div>
   );
 }

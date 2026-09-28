@@ -1,11 +1,17 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { getCoachReportAction } from "@/lib/coach/action";
 import type { CoachActionResult } from "@/lib/coach/types";
 
-/** Relatório do NeuroCoach da corrida selecionada; 1 chamada por corrida (memo por id). */
-export function useCoachReport(racePlayerId: string | undefined): CoachActionResult | null {
+/**
+ * Relatório do NeuroCoach da corrida selecionada; 1 chamada por corrida (memo por id).
+ * `retry` descarta o resultado da corrida atual e busca de novo (ex.: depois de um erro).
+ */
+export function useCoachReport(racePlayerId: string | undefined): {
+  result: CoachActionResult | null;
+  retry: () => void;
+} {
   const [results, setResults] = useState<Record<string, CoachActionResult>>({});
   const [, startTransition] = useTransition();
 
@@ -26,5 +32,14 @@ export function useCoachReport(racePlayerId: string | undefined): CoachActionRes
     };
   }, [racePlayerId, results]);
 
-  return racePlayerId ? (results[racePlayerId] ?? null) : null;
+  const retry = useCallback(() => {
+    if (!racePlayerId) return;
+    setResults((prev) => {
+      const next = { ...prev };
+      delete next[racePlayerId];
+      return next;
+    });
+  }, [racePlayerId]);
+
+  return { result: racePlayerId ? (results[racePlayerId] ?? null) : null, retry };
 }
