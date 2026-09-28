@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { analyzeRace } from "@/lib/coach/analyze";
 import {
   DEFAULT_MODEL,
@@ -14,14 +14,28 @@ import {
 } from "@/lib/coach/narrative-ai";
 import { flat, makeRace } from "@/lib/coach/test-utils";
 
-const cacheCalls = vi.hoisted(() => [] as unknown[][]);
-// O cache falso NUNCA executa a função: o teste fica 100% offline (nada de chamada real à Groq).
+// Cache falso com a semântica do real: guarda só o que resolve (rejeição não é gravada).
+// Nenhuma chamada de rede: o modelo é sempre injetado via `complete`.
+const cache = vi.hoisted(() => ({
+  entries: new Map<string, unknown>(),
+  revalidate: new Map<string, unknown>(),
+}));
 vi.mock("next/cache", () => ({
-  unstable_cache: (_fn: () => unknown, keyParts: string[], opts: unknown) => {
-    cacheCalls.push([keyParts, opts]);
-    return async () => ({ headline: "do cache", summary: "valor devolvido pelo cache" });
+  unstable_cache: (fn: () => Promise<unknown>, keyParts: string[], opts: { revalidate: unknown }) => {
+    const key = keyParts.join("|");
+    cache.revalidate.set(keyParts[0], opts.revalidate);
+    return async () => {
+      if (cache.entries.has(key)) return cache.entries.get(key);
+      const value = await fn();
+      cache.entries.set(key, value);
+      return value;
+    };
   },
 }));
+/** Simula o fim do prazo de um nível do cache (ex.: 24 h da tentativa). */
+const expire = (level: string) => {
+  for (const k of [...cache.entries.keys()]) if (k.startsWith(`${level}|`)) cache.entries.delete(k);
+};
 
 const M = [...flat(40, 5), ...flat(70, 12), ...flat(20, 6), ...flat(75, 7)];
 const race = makeRace(M, { id: "rp-secreto-123" });
@@ -121,12 +135,47 @@ describe("cache", () => {
     expect(narrativeCacheKey(input, "m1")).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it("cachedAiNarrative usa unstable_cache com a chave dos fatos e sem expirar", async () => {
-    cacheCalls.length = 0;
-    await expect(cachedAiNarrative(facts, "k", "m1")).resolves.toEqual({
-      headline: "do cache",
-      summary: "valor devolvido pelo cache",
+  // Um nível só: no Next 16, unstable_cache aninhado ignora o cache interno (bypass), então
+  // um desenho de dois níveis chamaria a Groq a cada abertura das corridas reprovadas.
+  describe("cachedAiNarrative — sucesso e reprovação guardados por 24 h; falha de rede não", () => {
+    beforeEach(() => cache.entries.clear());
+
+    it("sucesso: 1 chamada ao modelo por janela de 24 h", async () => {
+      const complete = vi.fn<CompletionFn>().mockResolvedValue(JSON.stringify(good));
+      await expect(cachedAiNarrative(facts, "k", "m1", { complete })).resolves.toEqual(good);
+      await expect(cachedAiNarrative(facts, "k", "m1", { complete })).resolves.toEqual(good);
+      expect(complete).toHaveBeenCalledTimes(1);
+      expire("neurocoach-narrative"); // passaram as 24 h
+      await cachedAiNarrative(facts, "k", "m1", { complete });
+      expect(complete).toHaveBeenCalledTimes(2);
     });
-    expect(cacheCalls).toEqual([[["neurocoach-narrative", narrativeCacheKey(input, "m1")], { revalidate: false }]]);
+
+    it("reprovada: null guardado (sem nova chamada); depois das 24 h tenta de novo", async () => {
+      const complete = vi
+        .fn<CompletionFn>()
+        .mockResolvedValueOnce(JSON.stringify({ ...good, headline: "Ultrapassagem decisiva no fim" }))
+        .mockResolvedValueOnce(JSON.stringify(good));
+      await expect(cachedAiNarrative(facts, "k", "m1", { complete })).resolves.toBeNull();
+      await expect(cachedAiNarrative(facts, "k", "m1", { complete })).resolves.toBeNull();
+      expect(complete).toHaveBeenCalledTimes(1);
+      expire("neurocoach-narrative");
+      await expect(cachedAiNarrative(facts, "k", "m1", { complete })).resolves.toEqual(good);
+      expect(complete).toHaveBeenCalledTimes(2);
+    });
+
+    it("falha de rede não é guardada: a próxima abertura tenta de novo", async () => {
+      const complete = vi.fn<CompletionFn>().mockRejectedValueOnce(new Error("timeout")).mockResolvedValueOnce(JSON.stringify(good));
+      await expect(cachedAiNarrative(facts, "k", "m1", { complete })).rejects.toThrow("timeout");
+      await expect(cachedAiNarrative(facts, "k", "m1", { complete })).resolves.toEqual(good);
+      expect(complete).toHaveBeenCalledTimes(2);
+    });
+
+    it("um único unstable_cache, prazo de 24 h, chave pelo hash dos fatos", async () => {
+      cache.revalidate.clear();
+      const complete = vi.fn<CompletionFn>().mockResolvedValue(JSON.stringify(good));
+      await cachedAiNarrative(facts, "k", "m1", { complete });
+      expect([...cache.revalidate.entries()]).toEqual([["neurocoach-narrative", 86_400]]);
+      expect([...cache.entries.keys()]).toEqual([`neurocoach-narrative|${narrativeCacheKey(input, "m1")}`]);
+    });
   });
 });

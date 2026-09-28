@@ -151,18 +151,28 @@ export async function narrativeOrNull(
   }
 }
 
+/** Prazo do cache do texto: sucesso e reprovação valem 24 h; depois a corrida tenta de novo. */
+export const NARRATIVE_TTL_SECONDS = 86_400;
+
 /**
- * 1 chamada por corrida: cache por hash dos fatos + versão do prompt + modelo, inclusive
- * quando a resposta foi reprovada (null). Falha de rede não é cacheada.
+ * No máximo 1 chamada à Groq por corrida a cada 24 h. Cache por hash dos fatos + versão do
+ * prompt + modelo, guardando também a resposta reprovada (null) para ela não ser pedida a cada
+ * abertura. Falha de rede/timeout lança e não é gravada.
+ *
+ * Um nível só de propósito: no Next 16, `unstable_cache` aninhado ignora o cache interno, então
+ * "sucesso para sempre + reprovação por 24 h" em dois níveis chamaria a Groq sempre.
  */
 export async function cachedAiNarrative(
   facts: CoachFacts,
   apiKey: string,
   model: string = process.env.GROQ_MODEL || DEFAULT_MODEL,
+  opts: { complete?: CompletionFn } = {},
 ): Promise<{ headline: string; summary: string } | null> {
   const key = narrativeCacheKey(buildLlmInput(facts), model);
-  const run = unstable_cache(() => narrativeOrNull(facts, { apiKey, model }), ["neurocoach-narrative", key], {
-    revalidate: false,
-  });
+  const run = unstable_cache(
+    () => narrativeOrNull(facts, { apiKey, model, complete: opts.complete }),
+    ["neurocoach-narrative", key],
+    { revalidate: NARRATIVE_TTL_SECONDS },
+  );
   return run();
 }
