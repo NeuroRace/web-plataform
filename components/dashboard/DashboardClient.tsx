@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { StatCard } from "./StatCard";
 import { EvolutionChart } from "./EvolutionChart";
 import { ReplayChart } from "./ReplayChart";
@@ -13,8 +13,16 @@ import {
 import { cn } from "@/lib/utils";
 import { CoachPanel } from "@/components/coach/CoachPanel";
 import { useCoachReport } from "@/components/coach/useCoachReport";
+import { analyzeLocally } from "@/lib/coach/local";
 
-export function DashboardClient({ races }: { races: RaceSummary[] }) {
+export function DashboardClient({
+  races,
+  demo = false,
+}: {
+  races: RaceSummary[];
+  /** Corrida de demonstração (`?demo=true`): não existe no banco, o NeuroCoach roda no cliente. */
+  demo?: boolean;
+}) {
   // `races` chega ordenado por started_at ascendente.
   const [selectedId, setSelectedId] = useState(
     races[races.length - 1]?.racePlayerId,
@@ -24,7 +32,14 @@ export function DashboardClient({ races }: { races: RaceSummary[] }) {
     races[races.length - 1];
 
   // NeuroCoach 2.0 (NEU-115): o servidor analisa pelo id; memo por corrida no hook.
-  const { result: coach, retry: retryCoach } = useCoachReport(selected?.racePlayerId);
+  // No demo não há corrida no banco: análise local (motor + texto-modelo, sem IA).
+  const remote = useCoachReport(demo ? undefined : selected?.racePlayerId);
+  const local = useMemo(
+    () => (demo && selected ? analyzeLocally(selected, races) : null),
+    [demo, selected, races],
+  );
+  const coach = demo ? local : remote.result;
+  const retryCoach = remote.retry;
 
   const raceAverages = races
     .map((r) => r.metrics.avgAttention)

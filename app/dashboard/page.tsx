@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadOwnTelemetry } from "@/lib/supabase/telemetry";
+import { DEMO_RACE } from "@/lib/coach/demo";
 import { buildRaceSummaries, type TelemetryRow, type RaceSummary } from "@/lib/metrics";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 import { EmptyState } from "@/components/dashboard/EmptyState";
@@ -17,35 +18,9 @@ function nameFromEmail(email: string): string {
   return first ? first.charAt(0).toUpperCase() + first.slice(1) : "Jogador";
 }
 
-// Corrida demo caso ative via query param (?demo=true)
-const DEMO_SUMMARIES: RaceSummary[] = [
-  {
-    racePlayerId: "demo-race-01",
-    raceId: "race-demo-uuid-1",
-    slot: 1,
-    startedAt: new Date(Date.now() - 65000).toISOString(),
-    finishedAt: new Date().toISOString(),
-    metrics: {
-      avgAttention: 64.2,
-      peakAttention: 92.0,
-      focusZonePct: 61.7,
-      avgMeditation: 48.0,
-      durationSeconds: 62.4,
-      sampleCount: 62,
-    },
-    series: [
-      { t: 0, attention: 70, meditation: 50 },
-      { t: 5, attention: 88, meditation: 52 },
-      { t: 10, attention: 85, meditation: 50 },
-      { t: 18, attention: 82, meditation: 51 },
-      { t: 25, attention: 76, meditation: 45 },
-      { t: 35, attention: 78, meditation: 46 },
-      { t: 42, attention: 31, meditation: 47 },
-      { t: 50, attention: 33, meditation: 48 },
-      { t: 62, attention: 34, meditation: 47 },
-    ],
-  },
-];
+// Corrida demo caso ative via query param (?demo=true). 1 amostra/s, para o NeuroCoach
+// ter dados suficientes (lib/coach/demo.ts).
+const DEMO_SUMMARIES: RaceSummary[] = [DEMO_RACE];
 
 interface DashboardPageProps {
   searchParams: Promise<{ demo?: string }>;
@@ -86,7 +61,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     telemetry,
   );
 
-  const summaries = isDemo && realSummaries.length === 0 ? DEMO_SUMMARIES : realSummaries;
+  const showDemo = isDemo && realSummaries.length === 0;
+  const summaries = showDemo ? DEMO_SUMMARIES : realSummaries;
 
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-12">
@@ -106,7 +82,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         {summaries.length === 0 ? (
           <EmptyState email={email} />
         ) : (
-          <DashboardClient races={summaries} />
+          <DashboardClient races={summaries} demo={showDemo} />
         )}
       </div>
     </div>
