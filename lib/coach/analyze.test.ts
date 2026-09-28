@@ -71,6 +71,15 @@ describe("analyzeRace — métricas e momentos (spec §4.2/§4.3)", () => {
     ]);
   });
 
+  it("sequência mede tempo real, não amostras (leitura perdida no meio)", () => {
+    const withGap: Array<number | null> = [...M];
+    withGap[12] = null; // pacote perdido aos 12 s, dentro da sequência 8–17
+    const r = makeRace(withGap);
+    const f = analyzeRace(r, [r]);
+    expect(f.metrics.bestStreakSeconds).toBe(10);
+    expect(f.moments.find((m) => m.kind === "streak")).toEqual({ kind: "streak", t: 8, tEnd: 17, value: 10 });
+  });
+
   it("leituras nulas são ignoradas e os momentos mantêm o segundo real", () => {
     const withNulls: Array<number | null> = [null, null, ...M];
     const r = makeRace(withNulls);

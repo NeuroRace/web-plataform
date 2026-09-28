@@ -97,8 +97,11 @@ export function analyzeRace(race: RaceSummary, history: RaceSummary[]): CoachFac
   const add = (m: Moment) => {
     if (!candidates.some((c) => Math.abs(c.t - m.t) <= MIN_MOMENT_GAP)) candidates.push(m);
   };
+  // Duração real da sequência em segundos (fim − início + 1 amostra de 1 s): contar amostras
+  // subestima quando há pacote perdido no meio.
+  const streakSeconds = run ? points[run.end].t - points[run.start].t + 1 : 0;
   if (run && run.length >= MIN_STREAK_MOMENT) {
-    add({ kind: "streak", t: points[run.start].t, tEnd: points[run.end].t, value: run.length });
+    add({ kind: "streak", t: points[run.start].t, tEnd: points[run.end].t, value: streakSeconds });
   }
   if (worst && worst.delta <= -MOMENT_DELTA) {
     add({ kind: "drop", t: points[worst.index].t, value: Math.round(worst.delta) });
@@ -119,7 +122,7 @@ export function analyzeRace(race: RaceSummary, history: RaceSummary[]): CoachFac
     ...baseMetrics,
     thirds: th,
     volatility,
-    bestStreakSeconds: run?.length ?? 0,
+    bestStreakSeconds: streakSeconds,
   };
   const avgAttention = baseMetrics.avgAttention ?? mean(att)!;
   const input: RuleInput = {
