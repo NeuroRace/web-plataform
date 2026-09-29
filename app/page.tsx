@@ -4,6 +4,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { NeuralField } from "@/components/signal/NeuralField";
 import mascotWinner from "@/public/assets/images/mascot-winner.png";
 import concentracao from "@/public/assets/images/concentracao.png";
+import mascotRunning from "@/public/assets/images/mascot-running.png";
 
 export default function Home() {
   return (
@@ -169,6 +170,11 @@ export default function Home() {
         <div className="absolute inset-0 bg-attention/5 blur-[120px] rounded-full pointer-events-none"></div>
         <div className="max-w-4xl mx-auto px-6 md:px-12 text-center relative z-10">
           <Reveal>
+            <Image
+              src={mascotRunning}
+              alt="Mascote do NeuroRace correndo"
+              className="mx-auto mb-8 h-auto w-56 sm:w-72 drop-shadow-[0_0_40px_rgba(91,227,200,0.15)]"
+            />
             <h2 className="font-display text-3xl sm:text-4xl font-extrabold text-fg-strong mb-4">Pronto para testar sua concentração?</h2>
             <p className="text-lg text-fg leading-relaxed mb-8">
               Visite nosso stand no NEXT 2026!<br className="hidden sm:block" /> Conecte o sensor NeuroSky e assuma o poder da sua mente!
