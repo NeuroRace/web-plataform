@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { buttonClass } from "@/components/ui/Button";
+import { hardNavigate } from "@/lib/hard-navigate";
+import { safeNext } from "@/lib/safe-next";
 import { Reveal } from "@/components/Reveal";
 
 function translateError(message: string): string {
@@ -25,7 +27,7 @@ const inputClass =
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") ?? "/dashboard";
+  const next = safeNext(params.get("next"));
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -66,8 +68,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         return;
       }
       if (data.session) {
-        router.push(next);
-        router.refresh();
+        hardNavigate(next);
       } else {
         router.push(`/confirmar?email=${encodeURIComponent(normalized)}`);
       }
@@ -81,8 +82,10 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         setLoading(false);
         return;
       }
-      router.push(next);
-      router.refresh();
+      // Navegação completa, não router.push: em produção o link "Meu Desempenho" faz prefetch
+      // do /dashboard ainda deslogado, e o roteador guarda o redirect para /login. O push depois
+      // do login reaproveitava esse cache e voltava para esta tela, presa em "Aguarde...".
+      hardNavigate(next);
     }
   }
 
