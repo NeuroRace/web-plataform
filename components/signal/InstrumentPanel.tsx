@@ -15,7 +15,7 @@ export function InstrumentPanel({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-[var(--radius-card)] border border-hairline bg-surface",
+        "overflow-hidden glass-card",
         className,
       )}
     >

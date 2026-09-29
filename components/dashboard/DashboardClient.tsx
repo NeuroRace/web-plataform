@@ -156,7 +156,7 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-card border border-border bg-card/40 p-5 sm:p-6">
+    <section className="glass-card p-5 sm:p-6">
       <h2 className="font-display text-lg font-semibold text-fg-strong">
         {title}
       </h2>

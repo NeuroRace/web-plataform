@@ -10,45 +10,51 @@ export const metadata: Metadata = {
 
 export default function EquipePage() {
   return (
-    <div className="mx-auto max-w-6xl px-5 py-16">
+    <div className="mx-auto w-full max-w-5xl px-5 py-12">
       <Reveal>
-        <h1 className="text-center font-display text-4xl font-extrabold sm:text-5xl">
-          Conheça a nossa <span className="text-gradient">equipe</span>
+        <h1 className="font-display text-3xl font-extrabold sm:text-4xl mb-12 text-center text-attention w-fit mx-auto pb-1">
+          Nossa Equipe
         </h1>
       </Reveal>
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 pb-24">
+          {team.map((member, i) => (
+            <Reveal key={member.name} delay={i * 0.05}>
+              <article className="group relative flex h-full flex-col justify-between overflow-hidden glass-card p-5 transition-all hover:border-white/20 hover:bg-white/10 hover:shadow-2xl">
+                
+                <div className="flex flex-col items-center text-center">
+                  <div className="relative mb-4 h-20 w-20 overflow-hidden rounded-full ring-2 ring-border/50 transition-all duration-300 group-hover:ring-attention group-hover:ring-offset-2 group-hover:ring-offset-bg">
+                    <Image
+                      src={member.photo}
+                      alt={`Foto de ${member.name}`}
+                      fill
+                      sizes="80px"
+                      className="object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                  </div>
+                  <h3 className="font-display text-lg font-bold tracking-tight text-fg-strong">
+                    {member.name}
+                  </h3>
+                  <p className="mt-1 font-mono text-[0.65rem] uppercase tracking-[0.1em] text-attention">
+                    {member.role}
+                  </p>
+                </div>
 
-      <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {team.map((member, i) => (
-          <Reveal key={member.name} delay={i * 0.05}>
-            <article className="group flex h-full flex-col items-center rounded-card border border-border bg-card/40 p-6 text-center transition-colors hover:border-cyan">
-              <div className="relative h-28 w-28 overflow-hidden rounded-full ring-2 ring-border transition-all group-hover:ring-cyan">
-                <Image
-                  src={member.photo}
-                  alt={`Foto de ${member.name}`}
-                  fill
-                  sizes="112px"
-                  className="object-cover"
-                />
-              </div>
-              <h3 className="mt-4 font-display text-lg font-semibold text-fg-strong">
-                {member.name}
-              </h3>
-              <p className="mt-1 text-sm text-cyan">{member.role}</p>
-              <hr className="my-3 w-10 border-border" />
-              <p className="text-sm text-fg-muted">{member.course}</p>
-              <a
-                href={member.linkedin}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label={`LinkedIn de ${member.name}`}
-                className="mt-4 inline-flex h-9 w-9 items-center justify-center rounded-full border border-border text-fg-muted transition-colors hover:border-cyan hover:text-cyan"
-              >
-                <LinkedInIcon />
-              </a>
-            </article>
-          </Reveal>
-        ))}
-      </div>
+                <div className="mt-5 flex flex-col items-center border-t border-hairline/50 pt-4 text-center">
+                  <p className="text-xs font-medium text-fg-strong">{member.course}</p>
+                  <a
+                    href={member.linkedin}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`LinkedIn de ${member.name}`}
+                    className="mt-4 inline-flex h-8 w-8 items-center justify-center rounded-full bg-surface/50 text-attention transition-all hover:bg-attention hover:text-bg hover:shadow-[0_0_12px_-2px_var(--color-attention)]"
+                  >
+                    <LinkedInIcon />
+                  </a>
+                </div>
+              </article>
+            </Reveal>
+          ))}
+        </div>
     </div>
   );
 }

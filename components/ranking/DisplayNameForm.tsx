@@ -19,9 +19,11 @@ const MAX = 20;
 export function DisplayNameForm({
   userId,
   initialName,
+  onSaved,
 }: {
   userId: string;
   initialName: string | null;
+  onSaved?: () => void;
 }) {
   const router = useRouter();
   const [name, setName] = useState(initialName ?? "");
@@ -44,10 +46,11 @@ export function DisplayNameForm({
 
     setLoading(true);
     const supabase = createClient();
-    const { error: err } = await supabase
+    const { data, error: err } = await supabase
       .from("profiles")
       .update({ display_name: trimmed })
-      .eq("id", userId);
+      .eq("id", userId)
+      .select("id");
     setLoading(false);
 
     if (err) {
@@ -60,8 +63,15 @@ export function DisplayNameForm({
       return;
     }
 
+    // Bug latente (NEU-78): update de 0 linhas não retorna erro, mas não salvou.
+    if (!data || data.length === 0) {
+      setError("Erro interno: perfil não encontrado no sistema.");
+      return;
+    }
+
     setName(trimmed);
     setSaved(true);
+    onSaved?.();
     router.refresh();
   }
 
@@ -110,7 +120,7 @@ export function DisplayNameForm({
       )}
       {saved && (
         <p role="status" className="mt-2 text-sm text-attention">
-          Salvo! Você já aparece no ranking.
+          Apelido salvo. Você aparece no ranking assim que terminar uma corrida.
         </p>
       )}
     </form>

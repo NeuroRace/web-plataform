@@ -5,14 +5,14 @@ import { cn } from "@/lib/utils";
 type Variant = "primary" | "secondary" | "ghost";
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-[0.7rem] px-5 py-3 font-display font-semibold transition-all duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-attention disabled:pointer-events-none disabled:opacity-50";
+  "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-display font-medium tracking-wide transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-attention disabled:pointer-events-none disabled:opacity-50";
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-attention text-bg hover:-translate-y-0.5 hover:glow-attention",
+    "bg-attention text-bg shadow-[0_0_20px_rgba(91,227,200,0.15)] hover:shadow-[0_0_30px_rgba(91,227,200,0.3)] hover:-translate-y-1",
   secondary:
-    "border border-border bg-surface/50 text-fg-strong hover:border-attention hover:text-attention",
-  ghost: "text-fg hover:text-fg-strong",
+    "border border-white/15 bg-transparent text-fg hover:bg-white/5 hover:text-fg-strong hover:border-white/30 hover:-translate-y-1",
+  ghost: "text-fg hover:text-fg-strong hover:bg-white/5",
 };
 
 /** Classe utilitária para estilizar <button> nativos (forms, ações). */

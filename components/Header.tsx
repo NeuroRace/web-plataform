@@ -40,7 +40,8 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-bg/80 backdrop-blur-md">
+    <>
+    <header className="sticky top-0 z-50 border-b border-border/60 bg-[#0f1e2e]/80 backdrop-blur-md">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
         <Logo />
 
@@ -56,8 +57,11 @@ export function Header() {
               (email ? (
                 <AuthChip email={email} onSignOut={signOut} />
               ) : (
-                <Link href="/login" className={buttonClass("secondary", "px-4 py-2")}>
-                  Entrar
+                <Link 
+                  href="/login" 
+                  className={cn(buttonClass("secondary", "px-5 py-1.5"), "text-[0.78rem] font-mono uppercase tracking-widest !rounded-full")}
+                >
+                  ENTRAR
                 </Link>
               ))}
           </div>
@@ -73,75 +77,76 @@ export function Header() {
           <MenuIcon />
         </button>
       </nav>
+    </header>
 
-      {/* Drawer mobile */}
+      {/* Drawer mobile: fora do <header> de propósito. O backdrop-filter do header vira o
+          bloco de contenção de filhos `fixed`, e o drawer ficava preso nos 64 px do header. */}
       <AnimatePresence>
         {open && (
           <motion.div
-            className="fixed inset-0 z-50 md:hidden"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 md:hidden flex flex-col"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
           >
-            <div
-              className="absolute inset-0 bg-bg/70 backdrop-blur-sm"
-              onClick={() => setOpen(false)}
-            />
-            <motion.div
-              className="absolute right-0 top-0 flex h-full w-72 flex-col gap-2 border-l border-border bg-bg-elev p-6"
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "tween", duration: 0.25, ease: "easeOut" }}
-            >
+            <div className="absolute inset-0 bg-[#0f1e2e]/98 backdrop-blur-md" />
+            
+            <div className="relative z-10 flex h-full flex-col p-6">
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="mb-4 self-end rounded-lg p-2 text-fg-muted hover:text-fg-strong"
+                className="self-end rounded-full bg-white/5 p-3 text-fg hover:bg-white/10 hover:text-white"
                 aria-label="Fechar menu"
               >
-                ✕
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
               </button>
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  className={cn(
-                    "rounded-lg px-3 py-2 font-display font-medium transition-colors",
-                    pathname === link.href
-                      ? "bg-surface text-attention"
-                      : "text-fg hover:bg-surface hover:text-fg-strong",
-                  )}
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <div className="mt-4 border-t border-border pt-4">
+              
+              <div className="mt-12 flex flex-col items-center gap-6">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "text-2xl font-display font-bold tracking-wide transition-colors",
+                      pathname === link.href
+                        ? "text-attention"
+                        : "text-fg hover:text-attention",
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+              
+              <div className="mt-auto mb-8 w-full max-w-sm mx-auto">
                 {ready &&
                   (email ? (
                     <button
                       type="button"
                       onClick={signOut}
-                      className={buttonClass("secondary", "w-full")}
+                      className={buttonClass("secondary", "w-full py-4 text-lg")}
                     >
-                      Sair ({email})
+                      Sair da conta
                     </button>
                   ) : (
                     <Link
                       href="/login"
                       onClick={() => setOpen(false)}
-                      className={buttonClass("primary", "w-full")}
+                      className={cn(buttonClass("primary", "w-full py-4"), "font-mono uppercase tracking-widest text-lg")}
                     >
-                      Entrar
+                      ENTRAR
                     </Link>
                   ))}
               </div>
-            </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </header>
+    </>
   );
 }
 
@@ -158,11 +163,17 @@ function NavItem({
     <Link
       href={href}
       className={cn(
-        "rounded-lg px-3 py-2 font-mono text-[0.78rem] font-medium uppercase tracking-wide transition-colors",
-        active ? "text-attention" : "text-fg hover:text-fg-strong",
+        "relative rounded-lg px-3 py-2 font-mono text-[0.78rem] font-medium uppercase tracking-wide transition-colors group",
+        active ? "text-attention" : "text-fg hover:text-attention/80",
       )}
     >
       {children}
+      <span 
+        className={cn(
+          "absolute left-3 right-3 bottom-1 h-[2px] origin-center scale-x-0 bg-attention transition-transform duration-300 ease-out group-hover:scale-x-100",
+          active && "scale-x-100"
+        )} 
+      />
     </Link>
   );
 }

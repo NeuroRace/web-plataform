@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { loadOwnTelemetry } from "@/lib/supabase/telemetry";
 import { DEMO_RACE } from "@/lib/coach/demo";
@@ -7,6 +8,8 @@ import { buildRaceSummaries, type TelemetryRow, type RaceSummary } from "@/lib/m
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DisplayNameForm } from "@/components/ranking/DisplayNameForm";
+import { OnboardingModal } from "@/components/dashboard/OnboardingModal";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Meu Desempenho" };
 
@@ -18,17 +21,16 @@ function nameFromEmail(email: string): string {
   return first ? first.charAt(0).toUpperCase() + first.slice(1) : "Jogador";
 }
 
-// Corrida demo caso ative via query param (?demo=true). 1 amostra/s, para o NeuroCoach
-// ter dados suficientes (lib/coach/demo.ts).
 const DEMO_SUMMARIES: RaceSummary[] = [DEMO_RACE];
 
 interface DashboardPageProps {
-  searchParams: Promise<{ demo?: string }>;
+  searchParams: Promise<{ demo?: string; tab?: string }>;
 }
 
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const params = await searchParams;
   const isDemo = params.demo === "true";
+  const activeTab = params.tab === "perfil" ? "perfil" : "desempenho";
 
   const supabase = await createClient();
 
@@ -46,8 +48,6 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         .from("race_players")
         .select("id, race_id, player_slot, started_at, finished_at")
         .order("started_at", { ascending: true }),
-      // Paginado (NEU-115): consulta única é cortada em 1000 linhas pelo PostgREST.
-      // Erro de leitura mantém o comportamento anterior: painel sem telemetria.
       loadOwnTelemetry(supabase).catch(() => [] as TelemetryRow[]),
       supabase
         .from("profiles")
@@ -66,25 +66,63 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-12">
-      <h1 className="font-display text-3xl font-extrabold sm:text-4xl">
-        Olá, <span className="text-gradient">{nameFromEmail(email)}</span>!
+      {/* MODAL DE ONBOARDING (Item 1 da NEU-83) */}
+      <OnboardingModal userId={user.id} initialName={profile?.display_name ?? null} />
+
+      <h1 className="font-display text-3xl font-extrabold sm:text-4xl text-fg-strong">
+        Olá, <span className="text-attention">{nameFromEmail(email)}</span>!
       </h1>
       <p className="mt-2 text-fg-muted">{email}</p>
 
-      <div className="mt-8 rounded-card border border-border bg-surface/40 p-5 sm:p-6">
-        <DisplayNameForm
-          userId={user.id}
-          initialName={profile?.display_name ?? null}
-        />
+      {/* ABAS (Item 2 da NEU-83) */}
+      <div className="mt-8 border-b border-border mb-8">
+        <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+          <Link
+            href={`?tab=desempenho${isDemo ? "&demo=true" : ""}`}
+            className={cn(
+              "whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition-colors",
+              activeTab === "desempenho"
+                ? "border-attention text-attention"
+                : "border-transparent text-fg-muted hover:border-border hover:text-fg"
+            )}
+          >
+            Meu Desempenho
+          </Link>
+          <Link
+            href={`?tab=perfil${isDemo ? "&demo=true" : ""}`}
+            className={cn(
+              "whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition-colors",
+              activeTab === "perfil"
+                ? "border-attention text-attention"
+                : "border-transparent text-fg-muted hover:border-border hover:text-fg"
+            )}
+          >
+            Meu Perfil
+          </Link>
+        </nav>
       </div>
 
-      <div className="mt-8">
-        {summaries.length === 0 ? (
-          <EmptyState email={email} />
-        ) : (
-          <DashboardClient races={summaries} demo={showDemo} />
-        )}
-      </div>
+      {activeTab === "desempenho" ? (
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+          {summaries.length === 0 ? (
+            <EmptyState email={email} />
+          ) : (
+            <DashboardClient races={summaries} demo={showDemo} />
+          )}
+        </div>
+      ) : (
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-2xl">
+          <div className="glass-card p-6 sm:p-8">
+            <h2 className="font-display text-2xl font-bold text-fg-strong mb-6">
+              Informações Públicas
+            </h2>
+            <DisplayNameForm
+              userId={user.id}
+              initialName={profile?.display_name ?? null}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

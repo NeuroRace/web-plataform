@@ -63,7 +63,9 @@ export function RankingBoard({
   const body = (
     <MotionConfig reducedMotion="user">
       {hasRounds && (
-        <Tabs value={activeTab} onChange={setTab} big={telao} />
+        <div className="flex justify-center">
+          <Tabs value={activeTab} onChange={setTab} big={telao} />
+        </div>
       )}
 
       {activeTab === "rodada" && (

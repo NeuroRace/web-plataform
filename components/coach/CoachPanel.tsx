@@ -6,7 +6,7 @@ export function CoachPanel({ result, onRetry }: { result: CoachActionResult | nu
     return (
       <div
         role="status"
-        className="animate-pulse rounded-card border border-border bg-card/30 p-8 text-center text-sm text-fg-muted"
+        className="animate-pulse glass-card p-8 text-center text-sm text-fg-muted"
       >
         O NeuroCoach está analisando esta corrida…
       </div>
@@ -14,7 +14,7 @@ export function CoachPanel({ result, onRetry }: { result: CoachActionResult | nu
   }
   if (!result.ok) {
     return (
-      <div className="rounded-card border border-border bg-card/30 p-6 text-center text-sm text-fg-muted">
+      <div className="glass-card p-6 text-center text-sm text-fg-muted">
         {result.reason === "unauthenticated" ? (
           "Sua sessão expirou. Entre de novo para ver a análise do NeuroCoach."
         ) : (

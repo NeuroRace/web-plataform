@@ -86,13 +86,16 @@ export function RoundHeader({
 }) {
   if (!name) {
     return (
-      <p className={cn("mt-6 text-fg", big && "text-2xl")}>
-        Nenhuma rodada acontecendo agora. Veja o ranking do evento.
-      </p>
+      <div className={cn("mt-12 glass-card mx-auto max-w-2xl p-8 text-center sm:p-10", big && "mt-16")}>
+        <p className={cn("text-fg text-lg", big && "text-3xl")}>
+          Nenhuma rodada acontecendo agora. <br className="hidden sm:block" />
+          Veja o ranking do evento.
+        </p>
+      </div>
     );
   }
   return (
-    <div className={cn("mt-6 flex flex-wrap items-baseline gap-x-4 gap-y-1", big && "mt-8")}>
+    <div className={cn("mt-6 flex flex-wrap items-baseline justify-center gap-x-4 gap-y-1", big && "mt-8")}>
       <h2 className={cn("font-display font-bold text-fg-strong", big ? "text-4xl" : "text-xl")}>
         {name}
       </h2>
@@ -127,14 +130,14 @@ export function PreviousWinner({
   return (
     <div
       className={cn(
-        "mt-6 flex items-center gap-4 rounded-card border border-gold/30 bg-gold/5",
+        "mt-6 flex items-center justify-center gap-4 rounded-card border border-gold/30 bg-gold/5 mx-auto max-w-2xl",
         big ? "p-6" : "p-4",
       )}
     >
       <span aria-hidden className={big ? "text-5xl" : "text-2xl"}>
         🏆
       </span>
-      <p className={cn("text-fg", big ? "text-2xl" : "text-sm")}>
+      <p className={cn("text-fg text-center", big ? "text-2xl" : "text-sm")}>
         Vencedor da {round}:{" "}
         <strong className="font-display text-gold">{name}</strong>{" "}
         <span className="font-mono text-fg-strong tabular-nums">({time})</span>
@@ -156,13 +159,14 @@ export function BoardContent({
   highlight: string | null;
   big: boolean;
 }) {
+  // O RoundHeader já exibe um card centralizado caso não haja rodada.
   if (tab === "rodada" && !hasCurrentRound) return null;
 
   if (!board || board.error) {
     return (
       <p
         role="alert"
-        className="rounded-card border border-border bg-surface/50 p-6 text-center text-fg"
+        className="glass-card mx-auto max-w-2xl mt-8 p-6 text-center text-fg"
       >
         Não consegui carregar o ranking agora. Tentando de novo em instantes.
       </p>
@@ -172,7 +176,7 @@ export function BoardContent({
   if (board.rows.length === 0) {
     const rodada = tab === "rodada";
     return (
-      <div className="rounded-card border border-border bg-surface/40 p-8 text-center sm:p-10">
+      <div className="glass-card mx-auto max-w-2xl mt-8 p-8 text-center sm:p-10">
         <Image
           src={mascotWinner}
           alt=""
@@ -180,22 +184,17 @@ export function BoardContent({
         />
         <h2
           className={cn(
-            "mt-4 font-display font-bold text-fg-strong",
+            "mt-6 font-display font-bold text-fg-strong",
             big ? "text-4xl" : "text-2xl",
           )}
         >
-          {rodada ? "A rodada começou, ainda sem corridas" : "O ranking ainda está vazio"}
+          {rodada ? "A rodada começou!" : "Ranking vazio"}
         </h2>
-        <p className={cn("mx-auto mt-3 max-w-md leading-relaxed text-fg", big && "max-w-2xl text-2xl")}>
+        <p className={cn("mx-auto mt-2 max-w-md text-fg-muted", big && "max-w-2xl text-2xl")}>
           {rodada
-            ? "Quem terminar a primeira corrida desta rodada assume a liderança."
-            : "Ninguém completou uma corrida com apelido definido ainda. Jogue no estande do NeuroRace e seja o primeiro a aparecer aqui."}
+            ? "Seja o primeiro a assumir a liderança."
+            : "Jogue no estande e apareça aqui."}
         </p>
-        {!big && !rodada && (
-          <ButtonLink href="/sobre" variant="secondary" className="mt-6">
-            Conhecer o projeto
-          </ButtonLink>
-        )}
       </div>
     );
   }
