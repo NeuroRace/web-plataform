@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Reveal } from "@/components/Reveal";
 import { ButtonLink } from "@/components/ui/Button";
 import { LiveSignal } from "@/components/signal/LiveSignal";
-import { Readout } from "@/components/signal/Readout";
 import { InstrumentPanel } from "@/components/signal/InstrumentPanel";
 
 export const metadata: Metadata = {

@@ -146,7 +146,7 @@ export default function Home() {
                 <Reveal delay={0.2}>
                   <div className="glass-card p-6 hover:border-attention/30 transition-colors cursor-default">
                     <h4 className="font-display text-lg font-bold text-attention mb-2">Seu Perfil Mental</h4>
-                    <p className="text-base text-fg leading-relaxed">Nossa IA analisa seu padrão de concentração para descobrir se você é um "Mestre Zen", "Sprinter Explosivo" ou "Hiperfocado".</p>
+                    <p className="text-base text-fg leading-relaxed">Nossa IA analisa seu padrão de concentração para descobrir se você é um “Mestre Zen”, “Sprinter Explosivo” ou “Hiperfocado”.</p>
                   </div>
                 </Reveal>
                 <Reveal delay={0.3}>

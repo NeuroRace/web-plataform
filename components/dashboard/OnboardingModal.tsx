@@ -1,7 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { DisplayNameForm } from "@/components/ranking/DisplayNameForm";
+
+const SKIP_KEY = "neurorace-onboarding-skipped";
+
+// sessionStorage só existe no browser: no servidor o modal nasce fechado (sem mismatch de hidratação).
+const noopSubscribe = () => () => {};
+const readSkipped = () => sessionStorage.getItem(SKIP_KEY) === "true";
+const serverSkipped = () => true;
 
 export function OnboardingModal({
   userId,
@@ -10,53 +17,64 @@ export function OnboardingModal({
   userId: string;
   initialName: string | null;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const skipped = useSyncExternalStore(noopSubscribe, readSkipped, serverSkipped);
+  const [closed, setClosed] = useState(false);
+  // Depois de salvar, o router.refresh() traz o apelido: o modal continua aberto
+  // mostrando a confirmação, até a pessoa clicar em "Fechar".
+  const [saved, setSaved] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  const isOpen = !closed && (saved || (initialName === null && !skipped));
+
+  function close() {
+    if (!saved) sessionStorage.setItem(SKIP_KEY, "true");
+    setClosed(true);
+  }
 
   useEffect(() => {
-    // Só mostramos o modal se o apelido for null
-    // e se o usuário não pulou a etapa nesta sessão
-    if (initialName === null && !sessionStorage.getItem("neurorace-onboarding-skipped")) {
-      setIsOpen(true);
-    }
-  }, [initialName]);
+    if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialogRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg/80 backdrop-blur-md p-4">
-      <div className="w-full max-w-md glass-card p-6 sm:p-8 shadow-2xl relative">
-        <h2 className="font-display text-2xl font-bold text-fg-strong mb-2">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-bg/80 p-4 backdrop-blur-md"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") close();
+      }}
+    >
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="onboarding-title"
+        tabIndex={-1}
+        className="glass-card relative w-full max-w-md p-6 shadow-2xl outline-none sm:p-8"
+      >
+        <h2 id="onboarding-title" className="mb-2 font-display text-2xl font-bold text-fg-strong">
           Bem-vindo ao NeuroRace!
         </h2>
-        <p className="text-fg mb-6 text-sm leading-relaxed">
-          Para aparecer no ranking oficial do evento, escolha um apelido público. 
-          Você poderá alterar depois na aba de Perfil.
+        <p className="mb-6 text-sm leading-relaxed text-fg">
+          Para aparecer no ranking oficial do evento, escolha um apelido público. Você poderá
+          alterar depois na aba de Perfil.
         </p>
-        
-        <DisplayNameForm 
-          userId={userId} 
-          initialName={initialName} 
-          onSaved={() => {
-            // Em vez de fechar imediatamente, apenas deixamos a mensagem
-            // de sucesso do form aparecer.
-            // Atualizamos o sessionStorage para não abrir de novo.
-            sessionStorage.setItem("neurorace-onboarding-skipped", "true");
-            
-            // Damos um tempo para o usuário ler a mensagem antes de fechar o modal,
-            // ou ele mesmo pode fechar no botão abaixo que mudaremos para "Continuar"
-          }} 
-        />
+
+        <DisplayNameForm userId={userId} initialName={initialName} onSaved={() => setSaved(true)} />
 
         <div className="mt-6 text-center">
-          <button 
+          <button
             type="button"
-            onClick={() => {
-              sessionStorage.setItem("neurorace-onboarding-skipped", "true");
-              setIsOpen(false);
-            }}
-            className="text-sm font-medium text-fg-muted hover:text-fg transition-colors"
+            onClick={close}
+            className="text-sm font-medium text-fg-muted transition-colors hover:text-fg"
           >
-            {initialName === null ? "Pular por enquanto" : "Fechar"}
+            {saved ? "Fechar" : "Pular por enquanto"}
           </button>
         </div>
       </div>

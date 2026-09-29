@@ -30,26 +30,32 @@ function clamp(v: number, lo: number, hi: number): number {
 export function makeDemoSeries(options: DemoSeriesOptions = {}): SeriesPoint[] {
   const points = options.points ?? 60;
   const rnd = mulberry32(options.seed ?? 7);
-  const out: SeriesPoint[] = [];
+  // passeio suave + oscilação senoidal → curva orgânica de EEG
+  const att: number[] = [];
+  const med: number[] = [];
   let attention = 55;
   let meditation = 45;
   for (let t = 0; t < points; t++) {
     attention = attention + (rnd() - 0.5) * 22 + Math.sin(t / 4) * 6;
     meditation = meditation + (rnd() - 0.5) * 16 + Math.cos(t / 6) * 4;
-    out.push({ t, attention, meditation });
+    att.push(attention);
+    med.push(meditation);
   }
 
-  // Linear blending para fechar o loop sem saltos!
-  // Garantimos que o último ponto seja igual ao primeiro.
-  const diffAtt = out[points - 1].attention - out[0].attention;
-  const diffMed = out[points - 1].meditation - out[0].meditation;
+  // Fecha o loop sem salto: tira a inclinação para o último ponto igualar o primeiro,
+  // e só então aplica o clamp.
+  const span = Math.max(points - 1, 1);
+  const diffAtt = points > 0 ? att[points - 1] - att[0] : 0;
+  const diffMed = points > 0 ? med[points - 1] - med[0] : 0;
 
+  const out: SeriesPoint[] = [];
   for (let t = 0; t < points; t++) {
-    // Corrige a inclinação e aplica clamp no final
-    out[t].attention = clamp(Math.round(out[t].attention - diffAtt * (t / (points - 1))), 12, 96);
-    out[t].meditation = clamp(Math.round(out[t].meditation - diffMed * (t / (points - 1))), 10, 80);
+    out.push({
+      t,
+      attention: clamp(Math.round(att[t] - diffAtt * (t / span)), 12, 96),
+      meditation: clamp(Math.round(med[t] - diffMed * (t / span)), 10, 80),
+    });
   }
-
   return out;
 }
 

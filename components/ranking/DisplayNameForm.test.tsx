@@ -20,7 +20,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 /** Encadeamento real: from("profiles").update({...}).eq("id", userId).select("id") */
-function mockUpdate(result: { error: { code?: string; message: string } | null; data?: any[] | null }) {
+function mockUpdate(result: { error: { code?: string; message: string } | null; data?: { id: string }[] | null }) {
   // O select é o que resolve a promessa agora. Retornamos array mockado ou erro
   mocks.select.mockResolvedValue(result);
   mocks.eq.mockReturnValue({ select: mocks.select });

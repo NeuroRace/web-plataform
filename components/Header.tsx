@@ -40,6 +40,7 @@ export function Header() {
   }
 
   return (
+    <>
     <header className="sticky top-0 z-50 border-b border-border/60 bg-[#0f1e2e]/80 backdrop-blur-md">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
         <Logo />
@@ -76,8 +77,10 @@ export function Header() {
           <MenuIcon />
         </button>
       </nav>
+    </header>
 
-      {/* Drawer mobile */}
+      {/* Drawer mobile: fora do <header> de propósito. O backdrop-filter do header vira o
+          bloco de contenção de filhos `fixed`, e o drawer ficava preso nos 64 px do header. */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -87,11 +90,7 @@ export function Header() {
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.2 }}
           >
-            {/* Fundo opaco blindado contra bugs de cache do Tailwind usando inline style + classes */}
-            <div 
-              className="absolute inset-0 bg-[#0f1e2e]/98 backdrop-blur-md" 
-              style={{ backgroundColor: 'rgba(15, 30, 46, 0.98)' }} 
-            />
+            <div className="absolute inset-0 bg-[#0f1e2e]/98 backdrop-blur-md" />
             
             <div className="relative z-10 flex h-full flex-col p-6">
               <button
@@ -147,7 +146,7 @@ export function Header() {
           </motion.div>
         )}
       </AnimatePresence>
-    </header>
+    </>
   );
 }
 

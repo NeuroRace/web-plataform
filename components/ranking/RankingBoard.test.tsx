@@ -99,7 +99,7 @@ describe("RankingBoard", () => {
     render(
       <RankingBoard initial={{ ...comRodada, round: { rows: [], error: false } }} />,
     );
-    expect(screen.getByText("A rodada começou, ainda sem corridas")).toBeInTheDocument();
+    expect(screen.getByText("A rodada começou!")).toBeInTheDocument();
   });
 
   it("atualiza sozinho a cada 15 s: corrida nova aparece sem recarregar", async () => {
