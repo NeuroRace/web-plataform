@@ -1,16 +1,10 @@
 "use client";
 
 import { MotionConfig } from "motion/react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useRef, useState } from "react";
 import { formatDuration } from "@/lib/metrics";
-import {
-  RANKING_REFRESH_MS,
-  TELAO_LIMIT,
-  formatRemaining,
-  formatWindowRange,
-} from "@/lib/ranking";
-import { loadRanking, type Board, type RankingSnapshot } from "@/lib/ranking-data";
+import { TELAO_LIMIT, formatRemaining, formatWindowRange } from "@/lib/ranking";
+import type { Board, RankingSnapshot } from "@/lib/ranking-data";
 import { site } from "@/lib/site";
 import {
   BoardContent,
@@ -21,6 +15,7 @@ import {
   TelaoControls,
   type RankingTab,
 } from "./RankingBoardParts";
+import { useLiveRanking, useNow } from "./useLiveRanking";
 
 export type { RankingTab };
 type Mode = "page" | "telao";
@@ -42,61 +37,23 @@ export function RankingBoard({
   initialTab?: RankingTab;
 }) {
   const telao = mode === "telao";
-  const [snap, setSnap] = useState(initial);
-  // Snapshot do servidor já incompleto: avisa desde o início.
-  const [stale, setStale] = useState(initial.failed);
   const [tab, setTab] = useState<RankingTab>(
     initialTab ?? (initial.windows?.current ? "rodada" : "evento"),
   );
-  // Relógio só depois de montar: evita divergência de hidratação no "faltam X".
-  const [now, setNow] = useState<Date | null>(null);
-  const inFlight = useRef(false);
   const hadRound = useRef(Boolean(initial.windows?.current));
-
-  const refresh = useCallback(async () => {
-    if (inFlight.current) return;
-    inFlight.current = true;
-    try {
-      const next = await loadRanking(createClient(), new Date(), {
-        limit: telao ? TELAO_LIMIT : undefined,
-      });
-      // Qualquer busca falhou (rodadas, evento, rodada ou vencedor): mantém a última tela.
-      if (next.failed) {
-        setStale(true);
-        return;
-      }
-      // Rodada começou ou acabou desde a última busca: abre na aba que faz sentido.
+  const { snap, stale } = useLiveRanking(initial, {
+    limit: telao ? TELAO_LIMIT : undefined,
+    // Rodada começou ou acabou desde a última busca: abre na aba que faz sentido.
+    onUpdate: (next) => {
       const hasRound = Boolean(next.windows?.current);
       if (hasRound !== hadRound.current) {
         hadRound.current = hasRound;
         setTab(hasRound ? "rodada" : "evento");
       }
-      setSnap(next);
-      setStale(false);
-    } catch {
-      setStale(true);
-    } finally {
-      inFlight.current = false;
-    }
-  }, [telao]);
-
-  useEffect(() => {
-    const first = setTimeout(() => setNow(new Date()), 0);
-    const clock = setInterval(() => setNow(new Date()), 5_000);
-    const poll = setInterval(() => {
-      if (document.visibilityState === "visible") void refresh();
-    }, RANKING_REFRESH_MS);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void refresh();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      clearTimeout(first);
-      clearInterval(clock);
-      clearInterval(poll);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, [refresh]);
+    },
+  });
+  // Relógio a cada 5 s: o "faltam X" é em minutos.
+  const now = useNow(5_000);
 
   const current = snap.windows?.current ?? null;
   const hasRounds = snap.windows !== null;

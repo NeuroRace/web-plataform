@@ -23,6 +23,8 @@
   --color-pink: #ff1f8f;
   --color-purple: #bf46f3;
   --color-gold: #ffd700;
+  --color-silver: #c9d6e2;  /* 2º lugar no pódio do telão (NEU-120) */
+  --color-bronze: #e0a36a;  /* 3º lugar no pódio do telão (NEU-120) */
   --color-card: #131c26;  /* DEPRECATED alias → surface; remover quando dashboard/auth/sobre/equipe migrarem (Planos B/C) */
 
   --radius-card: 0.875rem;
