@@ -5,6 +5,10 @@ import { TELAO_LIMIT } from "@/lib/ranking";
 import { ButtonLink } from "@/components/ui/Button";
 import { Reveal } from "@/components/Reveal";
 import { RankingBoard, type RankingTab } from "@/components/ranking/RankingBoard";
+import { TelaoPodio } from "@/components/telao/TelaoPodio";
+import { qrSvg } from "@/lib/qr";
+import { site } from "@/lib/site";
+import { PODIO_LIMIT } from "@/lib/telao";
 
 export const metadata: Metadata = {
   title: "Ranking",
@@ -21,7 +25,7 @@ const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v
 
 export default async function RankingPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  // Modo telão (NEU-111): /ranking?telao=1 — tela cheia para a TV do estande.
+  // Modo telão: /ranking?telao=1 — tela cheia para a TV do estande.
   const telao = first(params.telao) === "1";
   const aba = first(params.aba);
   const initialTab: RankingTab | undefined =
@@ -30,8 +34,17 @@ export default async function RankingPage({ searchParams }: { searchParams: Sear
   const supabase = await createClient();
 
   if (telao) {
-    const snapshot = await loadRanking(supabase, new Date(), { limit: TELAO_LIMIT });
-    return <RankingBoard initial={snapshot} mode="telao" initialTab={initialTab} />;
+    // modo=lista: o telão do #11 (NEU-111), plano B se o Pódio der problema no estande.
+    if (first(params.modo) === "lista") {
+      const snapshot = await loadRanking(supabase, new Date(), { limit: TELAO_LIMIT });
+      return <RankingBoard initial={snapshot} mode="telao" initialTab={initialTab} />;
+    }
+    // Pódio (NEU-120): padrão do telão.
+    const [snapshot, qr] = await Promise.all([
+      loadRanking(supabase, new Date(), { limit: PODIO_LIMIT }),
+      qrSvg(site.url),
+    ]);
+    return <TelaoPodio initial={snapshot} qrSvg={qr} host={new URL(site.url).host} />;
   }
 
   const {
