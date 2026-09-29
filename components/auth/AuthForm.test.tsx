@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   signInWithPassword: vi.fn(),
   push: vi.fn(),
   refresh: vi.fn(),
+  hardNavigate: vi.fn(),
+  next: null as string | null,
 }));
 
 vi.mock("@/lib/supabase/client", () => ({
@@ -16,8 +18,10 @@ vi.mock("@/lib/supabase/client", () => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: mocks.push, refresh: mocks.refresh }),
-  useSearchParams: () => ({ get: () => null }),
+  useSearchParams: () => ({ get: () => mocks.next }),
 }));
+
+vi.mock("@/lib/hard-navigate", () => ({ hardNavigate: mocks.hardNavigate }));
 
 async function submitSignup(email: string) {
   const user = userEvent.setup();
@@ -27,8 +31,17 @@ async function submitSignup(email: string) {
   await user.click(screen.getByRole("button", { name: /criar conta/i }));
 }
 
+async function submitLogin() {
+  const user = userEvent.setup();
+  render(<AuthForm mode="login" />);
+  await user.type(screen.getByLabelText(/e-mail/i), "Breq@Exemplo.com");
+  await user.type(screen.getByLabelText(/senha/i), "senha-forte-123");
+  await user.click(screen.getByRole("button", { name: /entrar/i }));
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.next = null;
 });
 
 describe("AuthForm (cadastro)", () => {
@@ -55,6 +68,52 @@ describe("AuthForm (cadastro)", () => {
     mocks.signUp.mockResolvedValue({ data: { user: null, session: null }, error: { message: "Password should be at least 6 characters" } });
     await submitSignup("x@exemplo.com");
     expect(await screen.findByRole("alert")).toHaveTextContent(/pelo menos 6/);
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+});
+
+describe("AuthForm (login)", () => {
+  it("login ok faz navegação completa para o destino, sem router.push", async () => {
+    // Com router.push, o prefetch de /dashboard feito ainda deslogado (redirect para /login)
+    // ficava no cache do roteador e a tela voltava para o próprio login, presa em "Aguarde...".
+    mocks.signInWithPassword.mockResolvedValue({ error: null });
+    await submitLogin();
+    expect(mocks.signInWithPassword).toHaveBeenCalledWith({ email: "breq@exemplo.com", password: "senha-forte-123" });
+    expect(mocks.hardNavigate).toHaveBeenCalledWith("/dashboard");
+    expect(mocks.push).not.toHaveBeenCalled();
+  });
+
+  it("respeita o next interno", async () => {
+    mocks.next = "/dashboard?tab=perfil";
+    mocks.signInWithPassword.mockResolvedValue({ error: null });
+    await submitLogin();
+    expect(mocks.hardNavigate).toHaveBeenCalledWith("/dashboard?tab=perfil");
+  });
+
+  it.each(["https://outro.site", "//outro.site", "/\\outro.site", "@outro.site", "javascript:alert(1)"])(
+    "next externo (%s) cai no /dashboard",
+    async (next) => {
+      mocks.next = next;
+      mocks.signInWithPassword.mockResolvedValue({ error: null });
+      await submitLogin();
+      expect(mocks.hardNavigate).toHaveBeenCalledWith("/dashboard");
+    },
+  );
+
+  it("erro de login não navega e libera o botão", async () => {
+    mocks.signInWithPassword.mockResolvedValue({ error: { message: "Invalid login credentials" } });
+    await submitLogin();
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(mocks.hardNavigate).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /entrar/i })).toBeEnabled();
+  });
+});
+
+describe("AuthForm (cadastro com sessão imediata)", () => {
+  it("também navega por completo", async () => {
+    mocks.signUp.mockResolvedValue({ data: { user: { id: "u1", identities: [{ id: "i1" }] }, session: { access_token: "t" } }, error: null });
+    await submitSignup("novo@exemplo.com");
+    expect(mocks.hardNavigate).toHaveBeenCalledWith("/dashboard");
     expect(mocks.push).not.toHaveBeenCalled();
   });
 });
