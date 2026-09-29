@@ -2,13 +2,14 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { loadOwnTelemetry } from "@/lib/supabase/telemetry";
+import { loadOwnRaces } from "@/lib/supabase/dashboard";
 import { DEMO_RACE } from "@/lib/coach/demo";
-import { buildRaceSummaries, type TelemetryRow, type RaceSummary } from "@/lib/metrics";
+import type { RaceSummary } from "@/lib/metrics";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DisplayNameForm } from "@/components/ranking/DisplayNameForm";
 import { OnboardingModal } from "@/components/dashboard/OnboardingModal";
+import { ShareCard } from "@/components/share/ShareCard";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Meu Desempenho" };
@@ -42,24 +43,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   const email = user.email ?? "";
 
-  const [{ data: racePlayers }, telemetry, { data: profile }] =
-    await Promise.all([
-      supabase
-        .from("race_players")
-        .select("id, race_id, player_slot, started_at, finished_at")
-        .order("started_at", { ascending: true }),
-      loadOwnTelemetry(supabase).catch(() => [] as TelemetryRow[]),
-      supabase
-        .from("profiles")
-        .select("display_name")
-        .eq("id", user.id)
-        .maybeSingle(),
-    ]);
-
-  const realSummaries = buildRaceSummaries(
-    racePlayers ?? [],
-    telemetry,
-  );
+  const { summaries: realSummaries, displayName } = await loadOwnRaces(supabase, user.id);
 
   const showDemo = isDemo && realSummaries.length === 0;
   const summaries = showDemo ? DEMO_SUMMARIES : realSummaries;
@@ -67,7 +51,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-12">
       {/* MODAL DE ONBOARDING (Item 1 da NEU-83) */}
-      <OnboardingModal userId={user.id} initialName={profile?.display_name ?? null} />
+      <OnboardingModal userId={user.id} initialName={displayName} />
 
       <h1 className="font-display text-3xl font-extrabold sm:text-4xl text-fg-strong">
         Olá, <span className="text-attention">{nameFromEmail(email)}</span>!
@@ -107,7 +91,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           {summaries.length === 0 ? (
             <EmptyState email={email} />
           ) : (
-            <DashboardClient races={summaries} demo={showDemo} />
+            <>
+              {/* Card dos Stories (NEU-88): só com corrida real, nunca no demo. */}
+              {!showDemo && <ShareCard />}
+              <DashboardClient races={summaries} demo={showDemo} />
+            </>
           )}
         </div>
       ) : (
@@ -118,7 +106,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             </h2>
             <DisplayNameForm
               userId={user.id}
-              initialName={profile?.display_name ?? null}
+              initialName={displayName}
             />
           </div>
         </div>
