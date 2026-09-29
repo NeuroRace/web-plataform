@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DisplayNameForm } from "@/components/ranking/DisplayNameForm";
 import { OnboardingModal } from "@/components/dashboard/OnboardingModal";
 import { ShareCard } from "@/components/share/ShareCard";
+import { buildArchetypeCard } from "@/lib/share-card";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Meu Desempenho" };
@@ -93,7 +94,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           ) : (
             <>
               {/* Card dos Stories (NEU-88): só com corrida real, nunca no demo. */}
-              {!showDemo && <ShareCard />}
+              {!showDemo && (
+                <ShareCard
+                  archetype={buildArchetypeCard({ displayName, races: summaries, leaderboard: [] }) !== null}
+                />
+              )}
               <DashboardClient races={summaries} demo={showDemo} />
             </>
           )}

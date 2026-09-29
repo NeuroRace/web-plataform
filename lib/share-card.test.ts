@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { buildShareCard } from "@/lib/share-card";
+import { buildArchetypeCard, buildShareCard } from "@/lib/share-card";
 import type { RaceSummary } from "@/lib/metrics";
+import { flat, makeRace } from "@/lib/coach/test-utils";
 
 function race(id: string, over: Partial<RaceSummary["metrics"]> = {}): RaceSummary {
   return {
@@ -72,5 +73,42 @@ describe("buildShareCard", () => {
     });
     expect(card.avgFocus).toBe(66);
     expect(card.races).toBe(3);
+  });
+});
+
+describe("buildArchetypeCard", () => {
+  it("usa a corrida mais recente com dados: arquétipo e badges do NeuroCoach", () => {
+    const old = makeRace(flat(40, 30), { id: "old", startedAt: "2026-09-30T12:00:00.000Z" });
+    const last = makeRace(flat(70, 40), { id: "last", startedAt: "2026-09-30T13:00:00.000Z" });
+    const card = buildArchetypeCard({ displayName: "Breq", races: [old, last], leaderboard });
+
+    expect(card?.archetype).toMatchObject({ id: "HIPERFOCADO", label: "Hiperfocado" });
+    expect(card?.race).toMatchObject({ avgFocus: 70, durationSeconds: 40, raceNumber: 2 });
+    const ids = card?.badges.map((b) => b.id);
+    // foco 70 no 1º terço, estável, 100% na zona, fim = começo, e melhor que a corrida anterior
+    expect(ids).toEqual(
+      expect.arrayContaining(["LARGADA_RELAMPAGO", "MENTE_DE_ACO", "MODO_FLOW", "FADIGA_ZERO", "RECORDE_PESSOAL"]),
+    );
+    expect(card?.rank).toBe(2);
+  });
+
+  it("corrida recente sem dados suficientes: cai na anterior que tem", () => {
+    const ok = makeRace(flat(50, 30), { id: "ok", startedAt: "2026-09-30T12:00:00.000Z" });
+    const poor = makeRace(flat(70, 4), { id: "poor", startedAt: "2026-09-30T13:00:00.000Z" });
+    const card = buildArchetypeCard({ displayName: null, races: [ok, poor], leaderboard: [] });
+    expect(card?.archetype.id).toBe("EQUILIBRADO");
+    expect(card?.race.raceNumber).toBe(1);
+    expect(card?.badges.map((b) => b.id)).toContain("PRIMEIRA_CORRIDA");
+  });
+
+  it("nenhuma corrida com dados suficientes: sem card de arquétipo", () => {
+    const poor = makeRace(flat(70, 4), { id: "poor" });
+    expect(buildArchetypeCard({ displayName: null, races: [poor], leaderboard: [] })).toBeNull();
+  });
+
+  it("no máximo 6 badges no card", () => {
+    const last = makeRace(flat(70, 40), { id: "last", meditation: 60 });
+    const card = buildArchetypeCard({ displayName: null, races: [last], leaderboard: [] });
+    expect(card!.badges.length).toBeLessThanOrEqual(6);
   });
 });

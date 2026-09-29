@@ -3,10 +3,10 @@ import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { createClient } from "@/lib/supabase/server";
 import { loadOwnRaces } from "@/lib/supabase/dashboard";
-import { buildShareCard } from "@/lib/share-card";
+import { buildArchetypeCard, buildShareCard, mascotFor } from "@/lib/share-card";
 import { qrSvg } from "@/lib/qr";
 import { site } from "@/lib/site";
-import { ShareCardImage } from "@/components/share/ShareCardImage";
+import { ArchetypeCardImage, ShareCardImage } from "@/components/share/ShareCardImage";
 
 export const dynamic = "force-dynamic";
 
@@ -19,41 +19,47 @@ async function pngDataUri(file: string): Promise<string> {
 
 /**
  * PNG 1080×1920 (Stories) com o desempenho do usuário logado (NEU-88).
+ * `?modelo=arquetipo`: arquétipo e badges do NeuroCoach; sem parâmetro, o melhor tempo.
  * Só dados dele (RLS), sem e-mail e sem curva de EEG. Fica sob /dashboard, então o
  * proxy já barra quem não tem sessão; o 401 aqui é a segunda trava.
  */
-export async function GET() {
+export async function GET(request: Request) {
+  const modelo = new URL(request.url).searchParams.get("modelo");
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return new Response("Não autorizado", { status: 401 });
 
-  const [{ summaries, displayName }, leaderboard, qr, mascot, logo] = await Promise.all([
+  const [{ summaries, displayName }, leaderboard, qr, logo] = await Promise.all([
     loadOwnRaces(supabase, user.id),
     supabase.rpc("get_leaderboard", { p_metric: "best_time", p_limit: 1000 }),
     qrSvg(site.url),
-    pngDataUri("mascot-winner.png"),
     pngDataUri("logo-icon.png"),
   ]);
   if (summaries.length === 0) return new Response("Sem corridas", { status: 404 });
 
-  const card = buildShareCard({ displayName, races: summaries, leaderboard: leaderboard.data ?? [] });
+  const input = { displayName, races: summaries, leaderboard: leaderboard.data ?? [] };
+  const common = {
+    logoSrc: logo,
+    qrSrc: `data:image/svg+xml;base64,${Buffer.from(qr).toString("base64")}`,
+    host: new URL(site.url).host,
+  };
 
-  return new ImageResponse(
-    (
-      <ShareCardImage
-        card={card}
-        mascotSrc={mascot}
-        logoSrc={logo}
-        qrSrc={`data:image/svg+xml;base64,${Buffer.from(qr).toString("base64")}`}
-        host={new URL(site.url).host}
-      />
-    ),
-    {
-      width: 1080,
-      height: 1920,
-      headers: { "Cache-Control": "private, no-store" },
-    },
-  );
+  let image;
+  if (modelo === "arquetipo") {
+    const card = buildArchetypeCard(input);
+    if (!card) return new Response("Sem corrida com dados suficientes", { status: 404 });
+    const mascot = await pngDataUri(mascotFor(card.archetype.id));
+    image = <ArchetypeCardImage card={card} mascotSrc={mascot} {...common} />;
+  } else {
+    const mascot = await pngDataUri("mascot-winner.png");
+    image = <ShareCardImage card={buildShareCard(input)} mascotSrc={mascot} {...common} />;
+  }
+
+  return new ImageResponse(image, {
+    width: 1080,
+    height: 1920,
+    headers: { "Cache-Control": "private, no-store" },
+  });
 }

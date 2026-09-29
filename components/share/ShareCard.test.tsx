@@ -70,4 +70,26 @@ describe("ShareCard", () => {
     await user.click(screen.getByRole("button", { name: "Compartilhar" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/não consegui gerar/i);
   });
+
+  it("sem arquétipo disponível, não mostra a escolha de modelo", () => {
+    render(<ShareCard />);
+    expect(screen.queryByRole("group", { name: "Modelo do card" })).not.toBeInTheDocument();
+  });
+
+  it("modelo 'Meu arquétipo' troca prévia, download e o PNG compartilhado", async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { share, canShare: () => true });
+    const user = userEvent.setup();
+    render(<ShareCard archetype />);
+
+    await user.click(screen.getByRole("button", { name: "Meu arquétipo" }));
+    const src = `${SHARE_IMAGE_URL}?modelo=arquetipo`;
+    expect(screen.getByRole("button", { name: "Meu arquétipo" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("img", { name: /prévia do seu card/i })).toHaveAttribute("src", src);
+    expect(screen.getByRole("link", { name: "Baixar imagem" })).toHaveAttribute("href", src);
+
+    await user.click(screen.getByRole("button", { name: "Compartilhar" }));
+    expect(fetch).toHaveBeenCalledWith(src, { cache: "no-store" });
+    expect((share.mock.calls[0][0].files[0] as File).name).toBe("neurorace-arquetipo.png");
+  });
 });
