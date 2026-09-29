@@ -99,10 +99,10 @@ export function TelaoPodio({
             )}
           </header>
 
-          {rows.length === 0 ? (
-            <EmptyState round={Boolean(current)} />
-          ) : (
-            <LayoutGroup>
+          <LayoutGroup>
+            {rows.length === 0 ? (
+              <EmptyState round={Boolean(current)} />
+            ) : (
               <ol
                 aria-label="Pódio"
                 className="flex min-h-[480px] items-end justify-center gap-10"
@@ -111,43 +111,51 @@ export function TelaoPodio({
                   <PodiumColumn key={slot.place} slot={slot} />
                 ))}
               </ol>
+            )}
 
-              <ol
-                aria-label="Do 4º ao 9º"
-                className={cn(
-                  "grid grid-cols-2 gap-x-16 gap-y-3 pt-5",
-                  rest.length > 0 && "border-t border-hairline",
-                )}
-              >
-                {rest.map((r) => (
-                  <motion.li
-                    layout
-                    key={r.display_name}
-                    className="flex items-center gap-6 py-1.5 text-[32px]"
+            {/* QR grande à direita, ao lado do 4º ao 9º: no rodapé ele não cabe no palco de 1080. */}
+            <footer className="mt-auto flex items-end gap-16">
+              <div className="flex min-w-0 flex-1 flex-col gap-6">
+                {rows.length > 0 && (
+                  <ol
+                    aria-label="Do 4º ao 9º"
+                    className={cn(
+                      "grid grid-cols-2 gap-x-16 gap-y-3 pt-5",
+                      rest.length > 0 && "border-t border-hairline",
+                    )}
                   >
-                    <span className="w-12 font-display font-bold text-fg-muted">{r.rank}</span>
-                    <span className="min-w-0 flex-1 truncate font-semibold">{r.display_name}</span>
-                    <span className="font-mono text-fg tabular-nums">
-                      {formatRaceTime(r.score)}
-                    </span>
-                  </motion.li>
-                ))}
-              </ol>
-            </LayoutGroup>
-          )}
-
-          <footer className="mt-auto flex items-center gap-6">
-            <div
-              className="size-[84px] shrink-0 overflow-hidden rounded-[10px] [&>svg]:size-full"
-              role="img"
-              aria-label={`QR code para ${host}`}
-              dangerouslySetInnerHTML={{ __html: qrSvg }}
-            />
-            <p className="font-display text-[32px] font-bold">
-              Seu nome aqui? Jogue no estande{" "}
-              <span className="font-mono text-[24px] font-medium text-attention">{host}</span>
-            </p>
-          </footer>
+                    {rest.map((r) => (
+                      <motion.li
+                        layout
+                        key={r.display_name}
+                        className="flex items-center gap-6 py-1.5 text-[32px]"
+                      >
+                        <span className="w-12 font-display font-bold text-fg-muted">{r.rank}</span>
+                        <span className="min-w-0 flex-1 truncate font-semibold">
+                          {r.display_name}
+                        </span>
+                        <span className="font-mono text-fg tabular-nums">
+                          {formatRaceTime(r.score)}
+                        </span>
+                      </motion.li>
+                    ))}
+                  </ol>
+                )}
+                <p className="font-display text-[32px] font-bold">
+                  Seu nome aqui? Jogue no estande
+                </p>
+              </div>
+              <div className="flex shrink-0 flex-col items-center gap-3">
+                <div
+                  className="size-[220px] overflow-hidden rounded-[14px] [&>svg]:size-full"
+                  role="img"
+                  aria-label={`QR code para ${host}`}
+                  dangerouslySetInnerHTML={{ __html: qrSvg }}
+                />
+                <span className="font-mono text-[24px] font-medium text-attention">{host}</span>
+              </div>
+            </footer>
+          </LayoutGroup>
         </div>
 
         <AnimatePresence>
