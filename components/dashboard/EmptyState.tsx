@@ -4,7 +4,7 @@ import mascotRunning from "@/public/assets/images/mascot-running.png";
 
 export function EmptyState({ email }: { email: string }) {
   return (
-    <div className="mx-auto max-w-lg rounded-card border border-border bg-card p-8 text-center sm:p-10">
+    <div className="mx-auto max-w-lg p-8 text-center sm:p-10">
       <Image
         src={mascotRunning}
         alt=""

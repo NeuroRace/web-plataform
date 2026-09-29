@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { buttonClass } from "@/components/ui/Button";
+import { Reveal } from "@/components/Reveal";
 
 function translateError(message: string): string {
   const m = message.toLowerCase();
@@ -86,17 +87,20 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }
 
   return (
-    <div className="w-full max-w-md rounded-card border border-cyan/40 bg-card p-8 sm:p-10">
-      <h1 className="text-center font-display text-3xl font-bold text-gradient">
-        {isSignup ? "Criar conta" : "Acessar plataforma"}
-      </h1>
-      <p className="mt-2 text-center text-sm text-fg">
-        {isSignup
-          ? "Cadastre-se com o mesmo e-mail que você usou no jogo."
-          : "Entre para conferir o seu desempenho."}
-      </p>
+    <div className="flex w-full max-w-md flex-col items-center">
+      <Reveal>
+        <h1 className="text-center font-display text-3xl font-extrabold sm:text-4xl text-attention w-fit mx-auto pb-1">
+          {isSignup ? "Criar conta" : "Acesso à plataforma"}
+        </h1>
+        <p className="mt-2 mb-8 text-center text-fg">
+          {isSignup
+            ? "Cadastre-se com o mesmo e-mail que você usou no jogo."
+            : "Entre para conferir o seu desempenho."}
+        </p>
+      </Reveal>
 
-      <form onSubmit={onSubmit} className="mt-8 space-y-4">
+      <div className="w-full glass-card p-8 sm:p-10">
+        <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-1.5 text-left">
           <label htmlFor="email" className="text-sm font-medium text-fg">
             E-mail
@@ -189,6 +193,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-fg-muted">
         🔒 Seus dados estão protegidos.
       </p>
+      </div>
     </div>
   );
 }

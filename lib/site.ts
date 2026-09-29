@@ -71,10 +71,31 @@ export const quotes = [
 /** Equipe (migrada do v1). Fotos em /public/assets/team. */
 export const team = [
   {
+    name: "Pedro Henrique",
+    role: "Desenvolvedor Back-end",
+    course: "Engenharia de Software",
+    photo: "/assets/team/pedro-henrique.png",
+    linkedin: "https://br.linkedin.com/in/phptavares",
+  },
+  {
+    name: "Thiago Oliveira",
+    role: "Desenvolvedor do Jogo",
+    course: "Engenharia de Software",
+    photo: "/assets/team/thiago-oliveira.jpeg",
+    linkedin: "https://br.linkedin.com/in/thiago-jardim-de-oliveira-490164298",
+  },
+  {
+    name: "Nikolas Santos",
+    role: "Engenheiro de Dados",
+    course: "Engenharia de Software",
+    photo: "/assets/team/nikolas-santos.png",
+    linkedin: "https://br.linkedin.com/in/nikolas-dos-santos",
+  },
+  {
     name: "Ester Silva",
     role: "Desenvolvedora Front-End",
     course: "Sistemas de Informação",
-    photo: "/assets/team/ester-silva.jpg",
+    photo: "/assets/team/ester-nova.jpg",
     linkedin: "https://br.linkedin.com/in/ester-silvaa",
   },
   {
@@ -85,25 +106,11 @@ export const team = [
     linkedin: "https://br.linkedin.com/in/jvmadv",
   },
   {
-    name: "Nikolas Santos",
-    role: "Engenheiro de Dados",
+    name: "Guilherme Bianchini",
+    role: "Full Stack e Video Maker",
     course: "Engenharia de Software",
-    photo: "/assets/team/nikolas-santos.png",
-    linkedin: "https://br.linkedin.com/in/nikolas-dos-santos",
-  },
-  {
-    name: "Pedro Henrique",
-    role: "Desenvolvedor Back-end",
-    course: "Engenharia de Software",
-    photo: "/assets/team/pedro-henrique.png",
-    linkedin: "https://br.linkedin.com/in/phptavares",
-  },
-  {
-    name: "Thiago Oliveira",
-    role: "Desenvolvedor do Jogo (Unreal)",
-    course: "Engenharia de Software",
-    photo: "/assets/team/thiago-oliveira.jpeg",
-    linkedin: "https://br.linkedin.com/in/thiago-jardim-de-oliveira-490164298",
+    photo: "/assets/team/guilherme.jpg",
+    linkedin: "https://br.linkedin.com/in/guilhermebreq",
   },
   {
     name: "Karlos Miguel",
@@ -111,6 +118,20 @@ export const team = [
     course: "Docente FIAP",
     photo: "/assets/team/karlos-miguel.png",
     linkedin: "https://br.linkedin.com/in/karlosmiguell",
+  },
+  {
+    name: "Rodrigo Brasileiro",
+    role: "Desenvolvedor",
+    course: "Engenharia de Software",
+    photo: "/assets/team/rodrigo.jpg",
+    linkedin: "https://www.linkedin.com/in/rodrigo-brasileiro-54031b249/",
+  },
+  {
+    name: "Matheus Barbosa",
+    role: "Desenvolvedor",
+    course: "Inteligência Artificial",
+    photo: "/assets/team/matheus.jpg",
+    linkedin: "https://www.linkedin.com/in/matheus-barbosa-silva-/",
   },
 ] as const;
 

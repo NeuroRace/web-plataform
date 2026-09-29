@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { DisplayNameForm } from "@/components/ranking/DisplayNameForm";
 
 const mocks = vi.hoisted(() => ({
+  select: vi.fn(),
   eq: vi.fn(),
   update: vi.fn(),
   from: vi.fn(),
@@ -18,16 +19,18 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: mocks.refresh }),
 }));
 
-/** Encadeamento real: from("profiles").update({...}).eq("id", userId) */
-function mockUpdate(result: { error: { code?: string; message: string } | null }) {
-  mocks.eq.mockResolvedValue(result);
+/** Encadeamento real: from("profiles").update({...}).eq("id", userId).select("id") */
+function mockUpdate(result: { error: { code?: string; message: string } | null; data?: any[] | null }) {
+  // O select é o que resolve a promessa agora. Retornamos array mockado ou erro
+  mocks.select.mockResolvedValue(result);
+  mocks.eq.mockReturnValue({ select: mocks.select });
   mocks.update.mockReturnValue({ eq: mocks.eq });
   mocks.from.mockReturnValue({ update: mocks.update });
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockUpdate({ error: null });
+  mockUpdate({ error: null, data: [{ id: "u1" }] });
 });
 
 describe("DisplayNameForm", () => {
@@ -105,5 +108,18 @@ describe("DisplayNameForm", () => {
   it("pré-preenche com o apelido atual", () => {
     render(<DisplayNameForm userId="u1" initialName="Breq" />);
     expect(screen.getByLabelText(/apelido/i)).toHaveValue("Breq");
+  });
+
+  it("mostra erro se o perfil não existe (0 linhas atualizadas - Bug NEU-78)", async () => {
+    mockUpdate({ error: null, data: [] });
+    const user = userEvent.setup();
+    render(<DisplayNameForm userId="u1" initialName={null} />);
+
+    await user.type(screen.getByLabelText(/apelido/i), "Breq");
+    await user.click(screen.getByRole("button", { name: /salvar/i }));
+
+    const alerta = await screen.findByRole("alert");
+    expect(alerta).toHaveTextContent(/perfil não encontrado/i);
+    expect(mocks.refresh).not.toHaveBeenCalled();
   });
 });

@@ -16,9 +16,9 @@ export type LeaderboardRow = {
  * quanto mais forte o acento de atenção, melhor a colocação.
  */
 function rankTone(rank: number): string {
-  if (rank === 1) return "text-attention glow-attention";
-  if (rank === 2) return "text-attention/80";
-  if (rank === 3) return "text-attention/60";
+  if (rank === 1) return "text-gold drop-shadow-[0_0_8px_rgba(255,215,0,0.5)]";
+  if (rank === 2) return "text-attention";
+  if (rank === 3) return "text-attention/80";
   return "text-fg-muted";
 }
 
@@ -107,8 +107,9 @@ export function LeaderboardTable({
                 </td>
                 <td
                   className={cn(
-                    "px-3 text-right font-mono text-fg-strong tabular-nums",
+                    "px-3 text-right font-mono tabular-nums",
                     big ? "py-5 text-3xl" : "py-4",
+                    rankTone(row.rank)
                   )}
                 >
                   {formatDuration(row.score)}

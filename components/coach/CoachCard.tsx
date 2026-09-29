@@ -28,7 +28,7 @@ function DeltaChip({ value, unit, lowerIsBetter }: { value: number; unit: "pts" 
 export function CoachCard({ facts, narrative }: { facts: CoachFacts; narrative: CoachNarrative }) {
   const prev = facts.progress.previous;
   return (
-    <section className="rounded-card border border-border bg-card/40 p-5 sm:p-6" aria-label="NeuroCoach">
+    <section className="glass-card p-5 sm:p-6" aria-label="NeuroCoach">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="font-mono text-xs uppercase tracking-widest text-cyan">NeuroCoach</p>

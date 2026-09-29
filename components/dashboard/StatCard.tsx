@@ -8,8 +8,8 @@ export function StatCard({
   hint?: string;
 }) {
   return (
-    <div className="rounded-card border border-border bg-card p-6 text-center">
-      <div className="font-display text-3xl font-bold text-gradient">
+    <div className="glass-card p-6 text-center">
+      <div className="font-display text-3xl font-bold text-attention">
         {value}
       </div>
       <div className="mt-1 text-sm text-fg">{label}</div>

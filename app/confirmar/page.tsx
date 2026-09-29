@@ -13,8 +13,8 @@ export default async function ConfirmarPage({
 
   return (
     <div className="flex flex-1 items-center justify-center px-5 py-20">
-      <div className="w-full max-w-md rounded-card border border-border bg-card p-8 text-center sm:p-10">
-        <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-gradient-brand text-2xl">
+      <div className="w-full max-w-md glass-card p-8 text-center sm:p-10">
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-attention/10 text-2xl border border-attention/20 shadow-[0_0_15px_-3px_var(--color-attention)]">
           ✉️
         </div>
         <h1 className="mt-5 font-display text-2xl font-bold text-fg-strong">

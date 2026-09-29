@@ -34,11 +34,22 @@ export function makeDemoSeries(options: DemoSeriesOptions = {}): SeriesPoint[] {
   let attention = 55;
   let meditation = 45;
   for (let t = 0; t < points; t++) {
-    // passeio suave + oscilação senoidal → curva orgânica de EEG
-    attention = clamp(attention + (rnd() - 0.5) * 22 + Math.sin(t / 4) * 6, 12, 96);
-    meditation = clamp(meditation + (rnd() - 0.5) * 16 + Math.cos(t / 6) * 4, 10, 80);
-    out.push({ t, attention: Math.round(attention), meditation: Math.round(meditation) });
+    attention = attention + (rnd() - 0.5) * 22 + Math.sin(t / 4) * 6;
+    meditation = meditation + (rnd() - 0.5) * 16 + Math.cos(t / 6) * 4;
+    out.push({ t, attention, meditation });
   }
+
+  // Linear blending para fechar o loop sem saltos!
+  // Garantimos que o último ponto seja igual ao primeiro.
+  const diffAtt = out[points - 1].attention - out[0].attention;
+  const diffMed = out[points - 1].meditation - out[0].meditation;
+
+  for (let t = 0; t < points; t++) {
+    // Corrige a inclinação e aplica clamp no final
+    out[t].attention = clamp(Math.round(out[t].attention - diffAtt * (t / (points - 1))), 12, 96);
+    out[t].meditation = clamp(Math.round(out[t].meditation - diffMed * (t / (points - 1))), 10, 80);
+  }
+
   return out;
 }
 

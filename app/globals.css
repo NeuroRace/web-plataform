@@ -2,17 +2,17 @@
 
 /* ── Tokens "Telemetry" ─────────────────────────────────────────────── */
 @theme {
-  /* Superfícies (base sóbria, quase preta) */
-  --color-bg: #0a0e13;
-  --color-bg-elev: #10171f;
-  --color-surface: #131c26;
-  --color-hairline: #1d2935;
-  --color-border: #26323f;
+  /* Superfícies (Azul escuro exato do logo) */
+  --color-bg: #0f1e2e;
+  --color-bg-elev: #142436;
+  --color-surface: #1a2a3d;
+  --color-hairline: #223447;
+  --color-border: #2a3c50;
 
-  /* Texto */
-  --color-fg: #9fb1c5;
-  --color-fg-strong: #eef6f3;
-  --color-fg-muted: #7e94aa;
+  /* Texto (branco puro / levemente opaco para manter a leitura limpa) */
+  --color-fg: #f1f5f9;
+  --color-fg-strong: #ffffff;
+  --color-fg-muted: #e2e8f0;
 
   /* Acentos SEMÂNTICOS (a regra de ouro: cor = informação) */
   --color-attention: #5be3c8;   /* frio — foco/atenção (acento primário) */
@@ -60,6 +60,12 @@
   ::-webkit-scrollbar-track { background: var(--color-bg); }
 }
 
+@layer components {
+  .glass-card {
+    @apply rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md shadow-xl;
+  }
+}
+
 @layer utilities {
   /* Glow sutil de foco (raro, nunca ambiente) */
   .glow-attention {
@@ -85,13 +91,13 @@
 
   /* DEPRECATED — só p/ páginas legadas (planos B/C). NÃO usar em código novo. */
   .text-gradient {
-    background-image: linear-gradient(90deg, var(--color-cyan), var(--color-pink));
+    background-image: linear-gradient(90deg, var(--color-cyan) 15%, var(--color-pink) 50%, var(--color-gold) 85%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
   .bg-gradient-brand {
-    background-image: linear-gradient(90deg, var(--color-cyan), var(--color-pink));
+    background-image: linear-gradient(90deg, var(--color-cyan) 15%, var(--color-pink) 50%, var(--color-gold) 85%);
   }
   .glow-cyan {
     box-shadow:

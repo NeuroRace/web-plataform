@@ -54,13 +54,9 @@ export default async function RankingPage({ searchParams }: { searchParams: Sear
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-12">
       <Reveal>
-        <h1 className="font-display text-3xl font-extrabold sm:text-4xl">
-          Ranking <span className="text-attention">ao vivo</span>
+        <h1 className="font-display text-3xl font-extrabold sm:text-4xl mb-6 text-attention w-fit mx-auto pb-1 text-center">
+          Ranking ao vivo
         </h1>
-        <p className="mt-2 text-fg-muted">
-          Melhor tempo de corrida no NEXT FIAP 2026. Só apelidos — nenhum e-mail
-          é exibido.
-        </p>
       </Reveal>
 
       {precisaDeApelido && (
