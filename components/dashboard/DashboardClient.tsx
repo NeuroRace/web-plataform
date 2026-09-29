@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useTransition } from "react";
+import { useMemo, useState } from "react";
 import { StatCard } from "./StatCard";
 import { EvolutionChart } from "./EvolutionChart";
 import { ReplayChart } from "./ReplayChart";
@@ -11,19 +11,23 @@ import {
   type RaceSummary,
 } from "@/lib/metrics";
 import { cn } from "@/lib/utils";
-
-// Componentes e Serviços de IA
-import { CognitiveFeedbackCard } from "@/components/ai/cognitive-feedback-card";
-import { getCognitiveReportAction } from "@/lib/ai/actions/generate-report.action";
-import { generateFallbackReport, type CognitiveReportOutput } from "@/lib/ai/schemas/cognitive-report.schema";
+import { CoachPanel } from "@/components/coach/CoachPanel";
+import { useCoachReport } from "@/components/coach/useCoachReport";
+import { analyzeLocally } from "@/lib/coach/local";
 
 export function DashboardClient({
   races,
-  coachEnabled,
+  demo = false,
+  coachEnabled = false,
 }: {
   races: RaceSummary[];
-  /** NEU-103: só com consentimento LGPD válido. O gate real está na server action. */
-  coachEnabled: boolean;
+  /** Corrida de demonstração (`?demo=true`): não existe no banco, o NeuroCoach roda no cliente. */
+  demo?: boolean;
+  /**
+   * NEU-103: consentimento LGPD válido. Não esconde o NeuroCoach (o motor roda para todos);
+   * só avisa que o texto por IA depende da autorização. O gate real está na server action.
+   */
+  coachEnabled?: boolean;
 }) {
   // `races` chega ordenado por started_at ascendente.
   const [selectedId, setSelectedId] = useState(
@@ -33,44 +37,15 @@ export function DashboardClient({
     races.find((r) => r.racePlayerId === selectedId) ??
     races[races.length - 1];
 
-  // Estado da IA com useTransition (sem setState síncrono no effect)
-  const [report, setReport] = useState<CognitiveReportOutput | null>(null);
-  const [isPending, startTransition] = useTransition();
-  const [isFallback, setIsFallback] = useState(false);
-
-  // Dispara a IA sempre que a corrida selecionada mudar
-  useEffect(() => {
-    if (!selected || !coachEnabled) return;
-
-    let isMounted = true;
-
-    startTransition(async () => {
-      try {
-        const res = await getCognitiveReportAction(selected);
-        if (!isMounted) return;
-
-        if (res.success && res.data) {
-          setReport(res.data);
-          setIsFallback(!!res.isFallback);
-        } else if (res.reason) {
-          // Sessão ou consentimento: sem relatório, nem heurístico.
-          setReport(null);
-        } else {
-          setReport(generateFallbackReport(selected.metrics.avgAttention ?? 50, false));
-          setIsFallback(true);
-        }
-      } catch {
-        if (isMounted) {
-          setReport(generateFallbackReport(selected.metrics.avgAttention ?? 50, false));
-          setIsFallback(true);
-        }
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedId, selected, coachEnabled]);
+  // NeuroCoach 2.0 (NEU-115): o servidor analisa pelo id; memo por corrida no hook.
+  // No demo não há corrida no banco: análise local (motor + texto-modelo, sem IA).
+  const remote = useCoachReport(demo ? undefined : selected?.racePlayerId);
+  const local = useMemo(
+    () => (demo && selected ? analyzeLocally(selected, races) : null),
+    [demo, selected, races],
+  );
+  const coach = demo ? local : remote.result;
+  const retryCoach = remote.retry;
 
   const raceAverages = races
     .map((r) => r.metrics.avgAttention)
@@ -112,7 +87,10 @@ export function DashboardClient({
       {/* 3. Seção do Replay + Lista Lateral de Corridas */}
       <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
         <Card title={`🧠 Replay — ${formatRaceDate(selected.startedAt)}`}>
-          <ReplayChart series={selected.series} />
+          <ReplayChart
+            series={selected.series}
+            moments={coach?.ok ? coach.facts.moments : undefined}
+          />
           <div className="mt-4 grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
             <Mini label="Pico" value={formatPct(selected.metrics.peakAttention)} />
             <Mini label="Média" value={formatPct(selected.metrics.avgAttention)} />
@@ -170,26 +148,15 @@ export function DashboardClient({
         </Card>
       </div>
 
-      {/* 4. SEÇÃO DO NEUROCOACH AI (LARGURA TOTAL) */}
-      <section className="pt-2">
-        {!coachEnabled ? (
-          <div className="rounded-2xl border border-border bg-card/30 p-6 text-center text-sm text-fg-muted">
-            <p className="font-medium text-fg-strong">NeuroCoach desligado</p>
-            <p className="mt-1">
-              A análise da IA só roda com a sua autorização. Você pode dar o aceite
-              no quadro de privacidade, no topo da página.
-            </p>
-          </div>
-        ) : isPending ? (
-          <div className="rounded-2xl border border-border bg-card/30 p-8 text-center animate-pulse text-fg-muted">
-            <span className="text-xl inline-block mb-2">🧠</span>
-            <p className="text-sm font-medium text-fg-strong">
-              O NeuroCoach está analisando o padrão neurocognitivo desta corrida...
-            </p>
-          </div>
-        ) : report ? (
-          <CognitiveFeedbackCard report={report} isFallback={isFallback} />
-        ) : null}
+      {/* 4. NeuroCoach (largura total) */}
+      <section className="space-y-3">
+        {!demo && !coachEnabled && (
+          <p className="text-sm text-fg-muted">
+            O texto escrito por IA só é gerado com a sua autorização. Você pode dar o aceite
+            no quadro de privacidade, no topo da página.
+          </p>
+        )}
+        <CoachPanel result={coach} onRetry={retryCoach} />
       </section>
     </div>
   );

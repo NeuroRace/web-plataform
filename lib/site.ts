@@ -3,12 +3,30 @@
  * Conteúdo reaproveitado/expandido do v1. Datas e links atualizados para o NEXT 2026.
  */
 
+/** Deploy de produção na Vercel (projeto `neurorace-v2`). `neurorace.vercel.app` não existe mais (NEU-80). */
+export const DEFAULT_SITE_URL = "https://neurorace-v2.vercel.app";
+
+/** URL canônica: `NEXT_PUBLIC_SITE_URL` se for http(s) válida, senão o deploy de produção. Sem barra final. */
+export function resolveSiteUrl(raw: string | undefined): string {
+  const value = raw?.trim();
+  if (!value) return DEFAULT_SITE_URL;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return DEFAULT_SITE_URL;
+    return value.replace(/\/+$/, "");
+  } catch {
+    return DEFAULT_SITE_URL;
+  }
+}
+
+const siteUrl = resolveSiteUrl(process.env.NEXT_PUBLIC_SITE_URL);
+
 export const site = {
   name: "NeuroRace",
   tagline: "Onde a sua mente é o controle",
   description:
     "Performance cognitiva gamificada: controle um jogo com o poder do seu foco. Neurofeedback em tempo real via EEG. Projeto do NEXT FIAP Festival.",
-  url: "https://neurorace.vercel.app", // placeholder — domínio definido perto do deploy
+  url: siteUrl,
   /** Contato de privacidade / titular (LGPD). Mesmo e-mail do termo v1 (ADR 0003). */
   privacyContact: "breq@breq.com.br",
   event: {
@@ -18,10 +36,10 @@ export const site = {
   },
   social: {
     linkedinShare:
-      "https://www.linkedin.com/sharing/share-offsite/?url=https://neurorace.vercel.app",
+      `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(siteUrl)}`,
     instagram: "https://instagram.com",
     twitterShare:
-      "https://x.com/intent/tweet?url=https://neurorace.vercel.app&text=Controlei%20um%20jogo%20com%20a%20mente%20no%20NeuroRace!%20%23NeuroRace%20%23NEXTFIAP",
+      `https://x.com/intent/tweet?url=${encodeURIComponent(siteUrl)}&text=Controlei%20um%20jogo%20com%20a%20mente%20no%20NeuroRace!%20%23NeuroRace%20%23NEXTFIAP`,
   },
 } as const;
 
