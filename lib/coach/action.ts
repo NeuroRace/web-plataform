@@ -1,6 +1,5 @@
 "use server";
 
-import { hasValidConsent } from "@/lib/consent";
 import { buildRaceSummaries } from "@/lib/metrics";
 import { createClient } from "@/lib/supabase/server";
 import { loadOwnTelemetry } from "@/lib/supabase/telemetry";
@@ -42,7 +41,7 @@ export async function getCoachReportAction(racePlayerId: string): Promise<CoachA
     const race = history.find((r) => r.racePlayerId === racePlayerId)!;
 
     const facts = analyzeRace(race, history);
-    return { ok: true, facts, narrative: await narrate(facts, user.user_metadata) };
+    return { ok: true, facts, narrative: await narrate(facts) };
   } catch (err) {
     console.error(
       JSON.stringify({
@@ -55,14 +54,15 @@ export async function getCoachReportAction(racePlayerId: string): Promise<CoachA
   }
 }
 
-async function narrate(facts: CoachFacts, metadata: unknown): Promise<CoachNarrative> {
+async function narrate(facts: CoachFacts): Promise<CoachNarrative> {
   const apiKey = process.env.GROQ_API_KEY;
   // Liga/desliga explícito, além da chave: o ADR 0003 (§6, NEU-94) exige verificar a política de
   // retenção/treino da Groq antes de mandar dado de EEG, mesmo agregado. Uma chave que já exista
   // na Vercel (IA Coach antiga) não pode ligar a IA sozinha.
   const aiEnabled = process.env.NEUROCOACH_AI_ENABLED === "true";
-  // LLM só com consentimento LGPD (NEU-94/ADR 0003) e só quando há o que analisar.
-  if (aiEnabled && apiKey && facts.quality === "ok" && hasValidConsent(metadata)) {
+  // Para toda pessoa logada, com ou sem aceite LGPD (NEU-132). Só números agregados vão para a
+  // Groq (sem e-mail, id ou data), e só quando há o que analisar.
+  if (aiEnabled && apiKey && facts.quality === "ok") {
     try {
       const ai = await cachedAiNarrative(facts, apiKey);
       if (ai) return { ...ai, source: "ai" };

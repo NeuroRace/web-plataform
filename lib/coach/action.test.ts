@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { buildWebConsent, CONSENT_METADATA_KEY } from "@/lib/consent";
 import { flat } from "@/lib/coach/test-utils";
 
 const mocks = vi.hoisted(() => ({
@@ -41,7 +40,6 @@ function mockTables(opts: { loadError?: boolean; telemetryForRace?: typeof telem
   });
 }
 
-const consented = { [CONSENT_METADATA_KEY]: buildWebConsent(new Date("2026-09-28T12:00:00.000Z")) };
 const aiText = { headline: "Texto gerado pela IA ok", summary: "Resumo da IA com mais de quarenta caracteres, só números dos fatos: 56." };
 
 beforeEach(() => {
@@ -69,7 +67,7 @@ describe("getCoachReportAction (spec §6)", () => {
   });
 
   it("corrida que não é do usuário (fora da RLS) → not_found", async () => {
-    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: consented } } });
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: {} } } });
     mockTables();
     await expect(getCoachReportAction("rp-de-outra-pessoa")).resolves.toEqual({ ok: false, reason: "not_found" });
   });
@@ -105,13 +103,13 @@ describe("getCoachReportAction (spec §6)", () => {
     expect(res.ok && res.facts.progress.previous).toEqual({ attentionDelta: 6.2, durationDelta: -10 });
   });
 
-  it("sem consentimento → texto-modelo, sem chamar a IA", async () => {
+  it("logado sem aceite LGPD → texto da IA (NEU-132: a IA não depende do aceite)", async () => {
     mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: {} } } });
     mockTables();
     const res = await getCoachReportAction("rp-1");
-    expect(res.ok && res.narrative.source).toBe("template");
+    expect(res).toMatchObject({ ok: true, narrative: { ...aiText, source: "ai" } });
     expect(res.ok && res.facts.archetype).toBe("OSCILADOR");
-    expect(mocks.cachedAiNarrative).not.toHaveBeenCalled();
+    expect(mocks.cachedAiNarrative).toHaveBeenCalledTimes(1);
   });
 
   it.each([undefined, "", "false", "1"])(
@@ -119,7 +117,7 @@ describe("getCoachReportAction (spec §6)", () => {
     async (flag) => {
       if (flag === undefined) delete process.env.NEUROCOACH_AI_ENABLED;
       else process.env.NEUROCOACH_AI_ENABLED = flag;
-      mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: consented } } });
+      mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: {} } } });
       mockTables();
       const res = await getCoachReportAction("rp-1");
       expect(res.ok && res.narrative.source).toBe("template");
@@ -129,15 +127,15 @@ describe("getCoachReportAction (spec §6)", () => {
 
   it("sem GROQ_API_KEY → texto-modelo", async () => {
     delete process.env.GROQ_API_KEY;
-    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: consented } } });
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: {} } } });
     mockTables();
     const res = await getCoachReportAction("rp-1");
     expect(res.ok && res.narrative.source).toBe("template");
     expect(mocks.cachedAiNarrative).not.toHaveBeenCalled();
   });
 
-  it("com consentimento e chave → texto da IA", async () => {
-    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: consented } } });
+  it("com a IA ligada e chave → texto da IA", async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: {} } } });
     mockTables();
     const res = await getCoachReportAction("rp-1");
     expect(res).toMatchObject({ ok: true, narrative: { ...aiText, source: "ai" } });
@@ -145,7 +143,7 @@ describe("getCoachReportAction (spec §6)", () => {
   });
 
   it("IA falha → texto-modelo", async () => {
-    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: consented } } });
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: {} } } });
     mockTables();
     mocks.cachedAiNarrative.mockRejectedValue(new Error("neurocoach_ai_banned_term"));
     const res = await getCoachReportAction("rp-1");
@@ -153,7 +151,7 @@ describe("getCoachReportAction (spec §6)", () => {
   });
 
   it("IA reprovou a resposta (null do cache) → texto-modelo", async () => {
-    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: consented } } });
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: {} } } });
     mockTables();
     mocks.cachedAiNarrative.mockResolvedValue(null);
     const res = await getCoachReportAction("rp-1");
@@ -161,7 +159,7 @@ describe("getCoachReportAction (spec §6)", () => {
   });
 
   it("log do fallback não leva conteúdo da resposta da IA", async () => {
-    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: consented } } });
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: {} } } });
     mockTables();
     mocks.cachedAiNarrative.mockRejectedValue(new SyntaxError('Unexpected token in JSON at "texto secreto do modelo"'));
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -172,7 +170,7 @@ describe("getCoachReportAction (spec §6)", () => {
   });
 
   it("corrida com poucos dados não chama a IA", async () => {
-    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: consented } } });
+    mocks.getUser.mockResolvedValue({ data: { user: { id: "u1", user_metadata: {} } } });
     mockTables({ telemetryForRace: telemetry.slice(0, 5) });
     const res = await getCoachReportAction("rp-1");
     expect(res.ok && res.facts.quality).toBe("insufficient");
