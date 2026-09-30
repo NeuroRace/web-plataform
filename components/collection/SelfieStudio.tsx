@@ -202,7 +202,7 @@ export function SelfieStudio({ frameIds, initialId }: { frameIds: string[]; init
   const fileName = `neurorace-${photo?.item.id ?? current.id}.png`;
 
   return (
-    <div className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-4 sm:py-8">
+    <div className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-4">
       <div className="flex items-center justify-between gap-3">
         <Link
           href="/dashboard?tab=colecao"
@@ -251,7 +251,7 @@ export function SelfieStudio({ frameIds, initialId }: { frameIds: string[]; init
           <img
             src={photo.url}
             alt={`Sua foto com a moldura ${photo.item.name}`}
-            className="aspect-[9/16] w-full rounded-2xl object-cover"
+            className="mx-auto aspect-[9/16] h-[min(calc(100dvh-19rem),calc((100vw-2rem)*16/9))] max-w-full rounded-2xl object-cover"
           />
           <button
             type="button"
@@ -315,7 +315,7 @@ export function SelfieStudio({ frameIds, initialId }: { frameIds: string[]; init
             data-testid="selfie-stage"
             onPointerDown={onPointerDown}
             onPointerUp={onPointerUp}
-            className="relative aspect-[9/16] w-full touch-pan-y select-none overflow-hidden rounded-2xl bg-surface"
+            className="relative mx-auto aspect-[9/16] h-[min(calc(100dvh-19rem),calc((100vw-2rem)*16/9))] max-w-full touch-pan-y select-none overflow-hidden rounded-2xl bg-surface"
           >
             <video
               ref={videoRef}

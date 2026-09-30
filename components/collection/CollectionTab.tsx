@@ -70,12 +70,24 @@ function Strip({
   onOpen: (id: string) => void;
   renderArt: (item: CollectionItem, locked: boolean) => React.ReactNode;
 }) {
+  const listRef = useRef<HTMLUListElement>(null);
+  const scroll = (dir: 1 | -1) =>
+    listRef.current?.scrollBy({ left: dir * listRef.current.clientWidth * 0.8, behavior: "smooth" });
+  const lower = title.toLowerCase();
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-xs font-medium uppercase tracking-[0.12em] text-fg-muted">{title}</h3>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-xs font-medium uppercase tracking-[0.12em] text-fg-muted">{title}</h3>
+        {/* No PC nem sempre dá para rolar de lado: setas. No celular, o dedo basta. */}
+        <div className="hidden gap-2 sm:flex">
+          <StripArrow label={`Rolar ${lower} para a esquerda`} dir={-1} onClick={() => scroll(-1)} />
+          <StripArrow label={`Rolar ${lower} para a direita`} dir={1} onClick={() => scroll(1)} />
+        </div>
+      </div>
       <ul
+        ref={listRef}
         aria-label={title}
-        className="-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 sm:mx-0 sm:px-0"
+        className="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-4 overflow-x-auto px-5 pb-2 sm:mx-0 sm:scroll-px-0 sm:px-0"
       >
         {items.map((item) => {
           const locked = !byId.has(item.id);
@@ -106,6 +118,21 @@ function Strip({
         })}
       </ul>
     </div>
+  );
+}
+
+function StripArrow({ label, dir, onClick }: { label: string; dir: 1 | -1; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-bg-elev text-fg outline-none hover:bg-surface focus-visible:ring-2 focus-visible:ring-attention"
+    >
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+        <path d={dir === 1 ? "M9 5l7 7-7 7" : "M15 5l-7 7 7 7"} />
+      </svg>
+    </button>
   );
 }
 

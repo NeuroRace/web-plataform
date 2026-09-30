@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { CollectionTab } from "./CollectionTab";
@@ -76,5 +76,19 @@ describe("aba Coleção (NEU-134)", () => {
     await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Fechar" }));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(item).toHaveFocus();
+  });
+
+  it("test_CollectionStripArrows_setas_do_PC_rolam_a_faixa", async () => {
+    const scrollBy = vi.fn();
+    Element.prototype.scrollBy = scrollBy as unknown as typeof Element.prototype.scrollBy;
+    // O jsdom não faz layout (clientWidth = 0): simula uma faixa de 800 px.
+    const width = vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(800);
+    render(<CollectionTab unlocks={UNLOCKS} />);
+    await userEvent.click(screen.getByRole("button", { name: "Rolar molduras para a direita" }));
+    expect(scrollBy).toHaveBeenLastCalledWith(expect.objectContaining({ left: expect.any(Number), behavior: "smooth" }));
+    expect(scrollBy.mock.lastCall?.[0].left).toBeGreaterThan(0);
+    await userEvent.click(screen.getByRole("button", { name: "Rolar figurinhas para a esquerda" }));
+    expect(scrollBy.mock.lastCall?.[0].left).toBeLessThan(0);
+    width.mockRestore();
   });
 });
