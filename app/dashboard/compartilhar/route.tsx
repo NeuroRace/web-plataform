@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { createClient } from "@/lib/supabase/server";
 import { loadOwnRaces } from "@/lib/supabase/dashboard";
+import { loadRanking } from "@/lib/ranking-data";
 import { buildArchetypeCard, buildShareCard, mascotFor } from "@/lib/share-card";
 import { qrSvg } from "@/lib/qr";
 import { site } from "@/lib/site";
@@ -31,15 +32,17 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return new Response("Não autorizado", { status: 401 });
 
-  const [{ summaries, displayName }, leaderboard, qr, logo] = await Promise.all([
+  const [{ summaries, displayName }, ranking, qr, logo] = await Promise.all([
     loadOwnRaces(supabase, user.id),
-    supabase.rpc("get_leaderboard", { p_metric: "best_time", p_limit: 1000 }),
+    // O card diz "no ranking do evento": mesmo período do telão e da aba Evento (NEU-124).
+    // Limite alto para achar a posição de quem está fora do top 50.
+    loadRanking(supabase, new Date(), { limit: 1000 }),
     qrSvg(site.url),
     pngDataUri("logo-icon.png"),
   ]);
   if (summaries.length === 0) return new Response("Sem corridas", { status: 404 });
 
-  const input = { displayName, races: summaries, leaderboard: leaderboard.data ?? [] };
+  const input = { displayName, races: summaries, leaderboard: ranking.event.rows };
   const common = {
     logoSrc: logo,
     qrSrc: `data:image/svg+xml;base64,${Buffer.from(qr).toString("base64")}`,

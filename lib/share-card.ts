@@ -12,7 +12,7 @@ export type ShareCardData = {
   name: string;
   /** Segundos. Do ranking quando a pessoa está nele; senão, a menor duração das corridas dela. */
   bestTime: number | null;
-  /** Posição no ranking geral do evento; null fora do ranking (sem apelido ou sem corrida válida). */
+  /** Posição no ranking do evento (desde a 1ª rodada; sem rodadas, o geral); null fora dele. */
   rank: number | null;
   races: number;
   /** Média do foco (atenção) das corridas com amostra, 0–100. */

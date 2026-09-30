@@ -5,8 +5,27 @@ import { ShareCard, SHARE_IMAGE_URL } from "@/components/share/ShareCard";
 
 const png = new Blob(["png"], { type: "image/png" });
 
+/** Resposta do fetch como o navegador entrega: `redirected` e `content-type` contam. */
+function response({
+  status = 200,
+  type = "image/png",
+  redirected = false,
+}: { status?: number; type?: string; redirected?: boolean } = {}) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    redirected,
+    headers: new Headers({ "content-type": type }),
+    blob: () => Promise.resolve(type === "image/png" ? png : new Blob(["<html>"], { type })),
+  };
+}
+
+// Sessão expirada: o proxy manda o /dashboard/compartilhar para o /login, e o fetch
+// segue o redirect e recebe a página de login com 200.
+const loginPage = () => response({ type: "text/html; charset=utf-8", redirected: true });
+
 beforeEach(() => {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(png) }));
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response()));
   URL.createObjectURL = vi.fn(() => "blob:card");
   URL.revokeObjectURL = vi.fn();
 });
@@ -64,11 +83,59 @@ describe("ShareCard", () => {
   });
 
   it("falha ao gerar a imagem mostra aviso", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response({ status: 500, type: "text/plain" })));
     const user = userEvent.setup();
     render(<ShareCard />);
     await user.click(screen.getByRole("button", { name: "Compartilhar" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/não consegui gerar/i);
+  });
+
+  it("sessão expirada: não compartilha a página de login como PNG e pede para entrar de novo", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(loginPage()));
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { share, canShare: () => true });
+    const user = userEvent.setup();
+    render(<ShareCard />);
+    await user.click(screen.getByRole("button", { name: "Compartilhar" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/sessão expirou/i);
+    expect(screen.getByRole("link", { name: "Entre de novo" })).toHaveAttribute("href", "/login?next=%2Fdashboard");
+    expect(share).not.toHaveBeenCalled();
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("resposta 200 que não é PNG não vira arquivo", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response({ type: "text/html" })));
+    const share = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { share, canShare: () => true });
+    const user = userEvent.setup();
+    render(<ShareCard />);
+    await user.click(screen.getByRole("button", { name: "Compartilhar" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/não consegui gerar/i);
+    expect(share).not.toHaveBeenCalled();
+  });
+
+  it("'Baixar imagem' baixa o PNG conferido", async () => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    const user = userEvent.setup();
+    render(<ShareCard />);
+    await user.click(screen.getByRole("link", { name: "Baixar imagem" }));
+
+    expect(fetch).toHaveBeenCalledWith(SHARE_IMAGE_URL, { cache: "no-store" });
+    expect(URL.createObjectURL).toHaveBeenCalledWith(png);
+    click.mockRestore();
+  });
+
+  it("'Baixar imagem' com a sessão expirada não baixa a página de login", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(loginPage()));
+    const user = userEvent.setup();
+    render(<ShareCard />);
+    await user.click(screen.getByRole("link", { name: "Baixar imagem" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/sessão expirou/i);
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 
   it("sem arquétipo disponível, não mostra a escolha de modelo", () => {
