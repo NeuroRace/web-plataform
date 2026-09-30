@@ -140,4 +140,22 @@ describe("selfie com moldura (NEU-125)", () => {
       expect.objectContaining({ source: photo, sourceWidth: 900, sourceHeight: 1600, mirror: false }),
     );
   });
+
+  it("test_CarouselSingle_com_uma_moldura_so_mostra_a_bolinha_de_tirar_foto", async () => {
+    render(<SelfieStudio frameIds={["neurorace"]} initialId="neurorace" />);
+    await screen.findByRole("button", { name: "Tirar foto com a moldura NeuroRace" });
+    expect(screen.queryByRole("button", { name: /^(Moldura anterior|Próxima moldura)/ })).toBeNull();
+  });
+
+  it("test_CameraReleaseLate_stream_que_chega_depois_de_sair_da_pagina_e_desligado", async () => {
+    let resolve!: (s: MediaStream) => void;
+    getUserMedia.mockReturnValueOnce(new Promise<MediaStream>((r) => (resolve = r)));
+    const lateStop = vi.fn();
+    const { unmount } = render(<SelfieStudio frameIds={FRAMES} initialId="sprinter" />);
+    unmount();
+    await act(async () => {
+      resolve({ getTracks: () => [{ stop: lateStop }] } as unknown as MediaStream);
+    });
+    expect(lateStop).toHaveBeenCalledTimes(1);
+  });
 });

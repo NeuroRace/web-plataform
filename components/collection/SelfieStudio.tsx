@@ -35,6 +35,8 @@ export function SelfieStudio({ frameIds, initialId }: { frameIds: string[]; init
   const streamRef = useRef<MediaStream | null>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const swipeX = useRef<number | null>(null);
+  // Cada pedido de câmera tem um número; sair da página ou pedir de novo invalida os anteriores.
+  const request = useRef(0);
 
   const n = frames.length;
   const current = frames[index] ?? frames[0];
@@ -42,11 +44,13 @@ export function SelfieStudio({ frameIds, initialId }: { frameIds: string[]; init
   const next = frames[(index + 1) % n];
 
   const stopCamera = useCallback(() => {
+    request.current += 1;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
   }, []);
 
   const startCamera = useCallback(async () => {
+    const id = ++request.current;
     setError(null);
     setPhase("starting");
     const media = typeof navigator === "undefined" ? undefined : navigator.mediaDevices;
@@ -56,10 +60,15 @@ export function SelfieStudio({ frameIds, initialId }: { frameIds: string[]; init
     }
     try {
       const stream = await media.getUserMedia({ video: { facingMode: "user" }, audio: false });
+      // A permissão pode chegar depois que a pessoa saiu ou pediu de novo: desliga na hora.
+      if (id !== request.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       streamRef.current = stream;
       setPhase("live");
     } catch {
-      setPhase("denied");
+      if (id === request.current) setPhase("denied");
     }
   }, []);
 
@@ -333,14 +342,14 @@ export function SelfieStudio({ frameIds, initialId }: { frameIds: string[]; init
           {phase === "live" && (
             <div className="flex flex-col items-center gap-2">
               <div className="flex items-center justify-center gap-6">
-                <CarouselDot item={prev} size="side" label={`Moldura anterior: ${prev.name}`} onClick={() => go(-1)} />
+                {n > 1 && <CarouselDot item={prev} size="side" label={`Moldura anterior: ${prev.name}`} onClick={() => go(-1)} />}
                 <CarouselDot item={current} size="center" label={`Tirar foto com a moldura ${current.name}`} onClick={capture} />
-                <CarouselDot item={next} size="side" label={`Próxima moldura: ${next.name}`} onClick={() => go(1)} />
+                {n > 1 && <CarouselDot item={next} size="side" label={`Próxima moldura: ${next.name}`} onClick={() => go(1)} />}
               </div>
               <div className="grid w-full max-w-xs grid-cols-3 items-baseline text-center">
-                <span className="truncate text-xs text-fg-muted">{prev.name}</span>
+                <span className="truncate text-xs text-fg-muted">{n > 1 ? prev.name : ""}</span>
                 <span className="font-display text-[15px] font-bold text-fg-strong">{current.name}</span>
-                <span className="truncate text-xs text-fg-muted">{next.name}</span>
+                <span className="truncate text-xs text-fg-muted">{n > 1 ? next.name : ""}</span>
               </div>
             </div>
           )}

@@ -118,8 +118,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </div>
       ) : activeTab === "colecao" ? (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-          {/* Coleção (NEU-134): desbloqueios calculados das corridas, sem escrita no banco. */}
-          <CollectionTab unlocks={computeUnlocks(summaries, user.created_at ?? null)} />
+          {/* Coleção (NEU-134): desbloqueios das corridas REAIS (nunca da demo), sem escrita no banco. */}
+          <CollectionTab unlocks={computeUnlocks(realSummaries, user.created_at ?? null)} />
         </div>
       ) : (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-2xl">
