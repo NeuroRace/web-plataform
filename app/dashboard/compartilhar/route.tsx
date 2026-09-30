@@ -4,7 +4,8 @@ import { ImageResponse } from "next/og";
 import { createClient } from "@/lib/supabase/server";
 import { loadOwnRaces } from "@/lib/supabase/dashboard";
 import { loadRanking } from "@/lib/ranking-data";
-import { buildArchetypeCard, buildShareCard, mascotFor } from "@/lib/share-card";
+import { buildArchetypeCard, buildShareCard } from "@/lib/share-card";
+import { characterArtFor } from "@/lib/collection/catalog";
 import { qrSvg } from "@/lib/qr";
 import { site } from "@/lib/site";
 import { ArchetypeCardImage, ShareCardImage } from "@/components/share/ShareCardImage";
@@ -14,7 +15,11 @@ export const dynamic = "force-dynamic";
 // Do disco, não por URL do próprio site: em preview protegido da Vercel o servidor
 // buscando a si mesmo toma 401 e o Satori quebra.
 async function pngDataUri(file: string): Promise<string> {
-  const data = await readFile(join(process.cwd(), "public", "assets", "images", file));
+  return publicPngDataUri(`/assets/images/${file}`);
+}
+
+async function publicPngDataUri(publicPath: string): Promise<string> {
+  const data = await readFile(join(process.cwd(), "public", publicPath));
   return `data:image/png;base64,${data.toString("base64")}`;
 }
 
@@ -53,7 +58,8 @@ export async function GET(request: Request) {
   if (modelo === "arquetipo") {
     const card = buildArchetypeCard(input);
     if (!card) return new Response("Sem corrida com dados suficientes", { status: 404 });
-    const mascot = await pngDataUri(mascotFor(card.archetype.id));
+    // O personagem do arquétipo, o mesmo da moldura na coleção (NEU-134).
+    const mascot = await publicPngDataUri(characterArtFor(card.archetype.id));
     image = <ArchetypeCardImage card={card} mascotSrc={mascot} {...common} />;
   } else {
     const mascot = await pngDataUri("mascot-winner.png");

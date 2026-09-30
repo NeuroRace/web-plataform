@@ -11,6 +11,8 @@ import { DisplayNameForm } from "@/components/ranking/DisplayNameForm";
 import { OnboardingModal } from "@/components/dashboard/OnboardingModal";
 import { ShareCard } from "@/components/share/ShareCard";
 import { buildArchetypeCard } from "@/lib/share-card";
+import { CollectionTab } from "@/components/collection/CollectionTab";
+import { computeUnlocks } from "@/lib/collection/unlocks";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Meu Desempenho" };
@@ -32,7 +34,7 @@ interface DashboardPageProps {
 export default async function DashboardPage({ searchParams }: DashboardPageProps) {
   const params = await searchParams;
   const isDemo = params.demo === "true";
-  const activeTab = params.tab === "perfil" ? "perfil" : "desempenho";
+  const activeTab = params.tab === "perfil" ? "perfil" : params.tab === "colecao" ? "colecao" : "desempenho";
 
   const supabase = await createClient();
 
@@ -74,6 +76,17 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             Meu Desempenho
           </Link>
           <Link
+            href={`?tab=colecao${isDemo ? "&demo=true" : ""}`}
+            className={cn(
+              "whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition-colors",
+              activeTab === "colecao"
+                ? "border-attention text-attention"
+                : "border-transparent text-fg-muted hover:border-border hover:text-fg"
+            )}
+          >
+            Coleção
+          </Link>
+          <Link
             href={`?tab=perfil${isDemo ? "&demo=true" : ""}`}
             className={cn(
               "whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition-colors",
@@ -102,6 +115,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               <DashboardClient races={summaries} demo={showDemo} />
             </>
           )}
+        </div>
+      ) : activeTab === "colecao" ? (
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+          {/* Coleção (NEU-134): desbloqueios calculados das corridas, sem escrita no banco. */}
+          <CollectionTab unlocks={computeUnlocks(summaries, user.created_at ?? null)} />
         </div>
       ) : (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 max-w-2xl">
