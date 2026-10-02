@@ -48,16 +48,6 @@ export function buildShareCard({
   };
 }
 
-/** Arquétipos de ritmo (arrancada, oscilação, aquecimento) usam o mascote correndo. */
-export function mascotFor(archetype: Archetype): "mascot-running.png" | "mascot-winner.png" {
-  return archetype === "SPRINTER" ||
-    archetype === "ARRANQUE_CRESCENTE" ||
-    archetype === "OSCILADOR" ||
-    archetype === "EM_AQUECIMENTO"
-    ? "mascot-running.png"
-    : "mascot-winner.png";
-}
-
 /** Card "Meu arquétipo": arquétipo e badges do NeuroCoach 2.0 de uma corrida. */
 export type ArchetypeCardData = {
   name: string;
