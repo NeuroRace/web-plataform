@@ -199,10 +199,12 @@ function StickerTile({ item, locked, large = false }: { item: CollectionItem; lo
   );
 }
 
-function unlockLine(unlock: Unlock): string {
+function unlockLine(item: CollectionItem, unlock: Unlock): string {
   if (!unlock.at) return "Vem com a sua conta.";
   const date = formatUnlockDate(unlock.at);
-  return unlock.metric ? `${unlock.metric} · ${date}` : `Desde ${date}`;
+  if (unlock.metric) return `${unlock.metric} · ${date}`;
+  // "Desde" é da conta; item ganho em corrida diz quando foi ganho.
+  return item.rule.type === "account" ? `Desde ${date}` : `Em ${date}`;
 }
 
 function Detail({
@@ -294,7 +296,7 @@ function Detail({
           <p className="max-w-xs text-base leading-relaxed text-fg-muted">{item.meaning}</p>
           <div className="w-full rounded-xl bg-bg px-4 py-3 text-left">
             <p className="text-xs uppercase tracking-[0.1em] text-fg-muted">{locked ? "Como ganhar" : "Você ganhou"}</p>
-            <p className="mt-1 text-[15px] text-fg">{locked ? item.how : unlockLine(unlock)}</p>
+            <p className="mt-1 text-[15px] text-fg">{locked ? item.how : unlockLine(item, unlock)}</p>
           </div>
           {!locked && item.kind === "frame" && (
             <Link

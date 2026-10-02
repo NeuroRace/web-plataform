@@ -52,9 +52,18 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+// A câmera só vale com o 1º quadro do vídeo: no jsdom ele nunca chega sozinho, então avisamos.
+function firstFrame() {
+  const video = document.querySelector("video")!;
+  Object.defineProperty(video, "readyState", { value: 2, configurable: true });
+  fireEvent(video, new Event("loadeddata"));
+}
+
 async function renderLive(initialId = "sprinter") {
   render(<SelfieStudio frameIds={FRAMES} initialId={initialId} />);
   await waitFor(() => expect(screen.getByRole("button", { name: /^Tirar foto com a moldura/ })).toBeInTheDocument());
+  firstFrame();
+  await waitFor(() => expect(screen.getByRole("button", { name: /^Tirar foto com a moldura/ })).toBeEnabled());
 }
 
 describe("selfie com moldura (NEU-125)", () => {
@@ -157,5 +166,22 @@ describe("selfie com moldura (NEU-125)", () => {
       resolve({ getTracks: () => [{ stop: lateStop }] } as unknown as MediaStream);
     });
     expect(lateStop).toHaveBeenCalledTimes(1);
+  });
+
+  it("test_CaptureNeedsFrame_sem_o_1o_quadro_do_video_o_botao_de_foto_fica_desligado", async () => {
+    render(<SelfieStudio frameIds={FRAMES} initialId="sprinter" />);
+    const shutter = await screen.findByRole("button", { name: "Tirar foto com a moldura Sprinter" });
+    expect(shutter).toBeDisabled();
+    await userEvent.click(shutter);
+    expect(mocks.compose).not.toHaveBeenCalled();
+    firstFrame();
+    await waitFor(() => expect(shutter).toBeEnabled());
+  });
+
+  it("test_CaptureNeedsFrameKeyboard_espaco_nao_fotografa_antes_do_1o_quadro", async () => {
+    render(<SelfieStudio frameIds={FRAMES} initialId="sprinter" />);
+    await screen.findByRole("button", { name: "Tirar foto com a moldura Sprinter" });
+    fireEvent.keyDown(window, { key: " " });
+    expect(mocks.compose).not.toHaveBeenCalled();
   });
 });

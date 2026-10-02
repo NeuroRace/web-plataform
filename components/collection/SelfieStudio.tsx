@@ -29,6 +29,8 @@ export function SelfieStudio({ frameIds, initialId }: { frameIds: string[]; init
   const [photo, setPhoto] = useState<{ blob: Blob; url: string; item: CollectionItem } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [images, setImages] = useState<Record<string, CanvasImageSource>>({});
+  // Sem o 1º quadro do vídeo a foto sairia só com a moldura (celular lento): o botão espera.
+  const [hasFrame, setHasFrame] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -52,6 +54,7 @@ export function SelfieStudio({ frameIds, initialId }: { frameIds: string[]; init
   const startCamera = useCallback(async () => {
     const id = ++request.current;
     setError(null);
+    setHasFrame(false);
     setPhase("starting");
     const media = typeof navigator === "undefined" ? undefined : navigator.mediaDevices;
     if (!media?.getUserMedia) {
@@ -85,6 +88,10 @@ export function SelfieStudio({ frameIds, initialId }: { frameIds: string[]; init
     if (phase !== "live" || !video || !streamRef.current) return;
     if (video.srcObject !== streamRef.current) video.srcObject = streamRef.current;
     void video.play().catch(() => undefined);
+    const ready = () => setHasFrame(video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA);
+    ready();
+    video.addEventListener("loadeddata", ready);
+    return () => video.removeEventListener("loadeddata", ready);
   }, [phase]);
 
   // Carrega o logo e os personagens (uma vez cada).
@@ -154,9 +161,9 @@ export function SelfieStudio({ frameIds, initialId }: { frameIds: string[]; init
 
   const capture = useCallback(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !hasFrame) return;
     void finish(video, video.videoWidth || 720, video.videoHeight || 1280, true);
-  }, [finish]);
+  }, [finish, hasFrame]);
 
   // Teclado no PC: setas trocam a moldura, espaço tira a foto.
   useEffect(() => {
@@ -343,7 +350,7 @@ export function SelfieStudio({ frameIds, initialId }: { frameIds: string[]; init
             <div className="flex flex-col items-center gap-2">
               <div className="flex items-center justify-center gap-6">
                 {n > 1 && <CarouselDot item={prev} size="side" label={`Moldura anterior: ${prev.name}`} onClick={() => go(-1)} />}
-                <CarouselDot item={current} size="center" label={`Tirar foto com a moldura ${current.name}`} onClick={capture} />
+                <CarouselDot item={current} size="center" label={`Tirar foto com a moldura ${current.name}`} onClick={capture} disabled={!hasFrame} />
                 {n > 1 && <CarouselDot item={next} size="side" label={`Próxima moldura: ${next.name}`} onClick={() => go(1)} />}
               </div>
               <div className="grid w-full max-w-xs grid-cols-3 items-baseline text-center">
@@ -364,11 +371,13 @@ function CarouselDot({
   size,
   label,
   onClick,
+  disabled = false,
 }: {
   item: CollectionItem;
   size: "side" | "center";
   label: string;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   const center = size === "center";
   return (
@@ -376,13 +385,14 @@ function CarouselDot({
       type="button"
       aria-label={label}
       onClick={onClick}
+      disabled={disabled}
       style={{
         backgroundColor: `${item.color}40`,
         borderColor: center ? "#ffffff" : item.color,
         boxShadow: center ? `0 0 0 3px ${item.color}` : undefined,
       }}
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-full outline-none transition focus-visible:ring-2 focus-visible:ring-attention focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+        "flex shrink-0 items-center justify-center rounded-full outline-none transition focus-visible:ring-2 focus-visible:ring-attention focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-wait disabled:opacity-50",
         center ? "h-20 w-20 border-[5px]" : "h-14 w-14 border-2",
       )}
     >

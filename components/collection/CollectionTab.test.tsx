@@ -91,4 +91,18 @@ describe("aba Coleção (NEU-134)", () => {
     expect(scrollBy.mock.lastCall?.[0].left).toBeLessThan(0);
     width.mockRestore();
   });
+
+  it("test_UnlockLineRace_item_de_corrida_sem_metrica_mostra_so_quando_foi_ganho", async () => {
+    render(<CollectionTab unlocks={[...UNLOCKS, { id: "primeira-corrida", at: "2026-09-28T13:00:00.000Z", metric: null }]} />);
+    await userEvent.click(screen.getByRole("button", { name: "Primeira Corrida, desbloqueada" }));
+    const dialog = screen.getByRole("dialog", { name: "Primeira Corrida" });
+    expect(within(dialog).getByText("Em 28/09")).toBeInTheDocument();
+    expect(within(dialog).queryByText(/Desde/)).toBeNull();
+  });
+
+  it("test_UnlockLineAccount_item_da_conta_continua_Desde", async () => {
+    render(<CollectionTab unlocks={UNLOCKS} />);
+    await userEvent.click(screen.getByRole("button", { name: "Piloto NeuroRace, desbloqueada" }));
+    expect(within(screen.getByRole("dialog", { name: "Piloto NeuroRace" })).getByText("Desde 27/09")).toBeInTheDocument();
+  });
 });
