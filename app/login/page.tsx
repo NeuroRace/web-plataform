@@ -13,7 +13,7 @@ export default function LoginPage() {
       </div>
       <div className="relative z-10 w-full max-w-md">
         <Suspense>
-          <AuthForm mode="login" />
+          <AuthForm />
         </Suspense>
       </div>
     </div>
