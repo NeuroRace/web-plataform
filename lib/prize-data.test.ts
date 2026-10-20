@@ -32,11 +32,28 @@ describe("loadMyPrize", () => {
     expect(await loadMyPrize(client)).toEqual({ ok: true, rows: [] });
   });
 
-  it("função ainda não publicada (NEU-167): marca como ausente, sem barulho no console", async () => {
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { client } = fakeClient({ data: null, error: { code: "PGRST202" } });
+  it("função ausente (NEU-167 não publicada ou assinatura diferente): marca como ausente e avisa sem erro", async () => {
+    // PGRST202 também vem de parâmetro obrigatório na função publicada: o aviso mostra a mensagem.
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { client } = fakeClient({
+      data: null,
+      error: { code: "PGRST202", message: "Could not find the function public.get_my_prize" },
+    });
     expect(await loadMyPrize(client)).toEqual({ ok: false, missing: true });
-    expect(log).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(
+      "get_my_prize indisponível",
+      "PGRST202",
+      "Could not find the function public.get_my_prize",
+    );
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it("formato diferente do contrato: falha sem quebrar o painel e aparece no console", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { client } = fakeClient({ data: { round_name: "Rodada 2" }, error: null });
+    expect(await loadMyPrize(client)).toEqual({ ok: false, missing: false });
+    expect(log).toHaveBeenCalledWith("get_my_prize: formato fora do contrato");
   });
 
   it("outro erro (grant ou RLS errado na 167): falha e aparece no console", async () => {

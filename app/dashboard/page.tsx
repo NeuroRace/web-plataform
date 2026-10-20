@@ -15,7 +15,6 @@ import { CollectionTab } from "@/components/collection/CollectionTab";
 import { computeUnlocks } from "@/lib/collection/unlocks";
 import { PrizeCard } from "@/components/dashboard/PrizeCard";
 import { loadMyPrize } from "@/lib/prize-data";
-import { pickPrize } from "@/lib/prize";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Meu Desempenho" };
@@ -69,10 +68,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
       {/* Prêmio da rodada (NEU-171): em qualquer aba; sem prêmio, nada aparece.
           Sem a função no banco (NEU-167), o cartão nem tenta buscar de novo. */}
-      <PrizeCard
-        initial={prize.ok ? pickPrize(prize.rows) : null}
-        enabled={prize.ok || !prize.missing}
-      />
+      <PrizeCard initial={prize.ok ? prize.rows : []} enabled={prize.ok || !prize.missing} />
 
       {/* ABAS (Item 2 da NEU-83) */}
       <div className="mt-8 border-b border-border mb-8">

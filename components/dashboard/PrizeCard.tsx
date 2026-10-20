@@ -6,39 +6,52 @@ import { loadMyPrize } from "@/lib/prize-data";
 import {
   PRIZE_IDLE_REFRESH_MS,
   PRIZE_REFRESH_MS,
-  pickPrize,
+  hasClaimedPrize,
   prizeView,
+  visiblePrizes,
   type PrizeRow,
+  type PrizeView,
 } from "@/lib/prize";
-import { useNow } from "@/components/ranking/useLiveRanking";
 import { cn } from "@/lib/utils";
 
 /**
  * Prêmio da rodada no topo do painel (NEU-171). É o único lugar garantido para quem
  * não recebe e-mail nem WhatsApp.
  *
- * Busca de novo ao voltar para a aba, a cada 30 s enquanto o código vale e a cada 60 s
- * sem ele: a rodada pode fechar com a pessoa já no painel. Só com a aba visível. Uma
- * busca que falha mantém o que já estava na tela. `enabled` falso (função ainda não
- * publicada) desliga tudo.
+ * Busca de novo ao voltar para a aba, a cada 30 s enquanto há código valendo e a cada
+ * 60 s sem ele (a rodada pode fechar com a pessoa já no painel). Só com a aba visível.
+ * Para de buscar sem a função no banco (`enabled` falso) e depois do prêmio retirado.
+ * Uma busca que falha mantém o que já estava na tela.
  */
-export function PrizeCard({ initial, enabled }: { initial: PrizeRow | null; enabled: boolean }) {
-  const [prize, setPrize] = useState(initial);
+export function PrizeCard({ initial, enabled }: { initial: PrizeRow[]; enabled: boolean }) {
+  // A página mantém este estado entre trocas de aba e router.refresh(): dados novos do
+  // servidor substituem os antigos (padrão de "informação do render anterior").
+  const propsKey = JSON.stringify([initial, enabled]);
+  const [seenKey, setSeenKey] = useState(propsKey);
+  const [rows, setRows] = useState(initial);
   const [available, setAvailable] = useState(enabled);
-  const now = useNow(PRIZE_REFRESH_MS);
-  const view = prizeView(prize, now);
-  const open = view.kind === "open";
+  if (seenKey !== propsKey) {
+    setSeenKey(propsKey);
+    setRows(initial);
+    setAvailable(enabled);
+  }
+
+  const views = visiblePrizes(rows).map(prizeView).filter(isShown);
+  const open = views.some((v) => v.kind === "open");
+  const claimed = hasClaimedPrize(rows);
   const inFlight = useRef(false);
 
   useEffect(() => {
-    if (!available) return;
+    if (!available || claimed) return;
     const refresh = async () => {
       if (document.visibilityState !== "visible" || inFlight.current) return;
       inFlight.current = true;
       try {
         const res = await loadMyPrize(createClient());
-        if (res.ok) setPrize(pickPrize(res.rows));
+        if (res.ok) setRows(res.rows);
         else if (res.missing) setAvailable(false);
+      } catch (err) {
+        console.error("get_my_prize: falha inesperada", err);
       } finally {
         inFlight.current = false;
       }
@@ -49,19 +62,33 @@ export function PrizeCard({ initial, enabled }: { initial: PrizeRow | null; enab
       clearInterval(poll);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [available, open]);
+  }, [available, claimed, open]);
 
-  if (view.kind === "none") return null;
+  // A região existe mesmo vazia: leitor de tela só anuncia mudança dentro de uma região
+  // que já estava na página quando o código chegou.
+  return (
+    <div aria-live="polite">
+      {views.map((view, i) => (
+        <PrizeSection key={i} view={view} titleId={`premio-titulo-${i}`} />
+      ))}
+    </div>
+  );
+}
 
+type ShownView = Exclude<PrizeView, { kind: "none" }>;
+
+const isShown = (v: PrizeView): v is ShownView => v.kind !== "none";
+
+function PrizeSection({ view, titleId }: { view: ShownView; titleId: string }) {
+  const open = view.kind === "open";
   return (
     <section
-      aria-labelledby="premio-titulo"
-      aria-live="polite"
+      aria-labelledby={titleId}
       className={cn("glass-card mt-6 p-5 sm:p-6", open && "glow-attention")}
     >
       {view.kind === "open" ? (
         <>
-          <h2 id="premio-titulo" className="font-display text-xl font-bold text-fg-strong sm:text-2xl">
+          <h2 id={titleId} className="font-display text-xl font-bold text-fg-strong sm:text-2xl">
             Você venceu a {view.round}!
           </h2>
           <div className="mt-4 flex flex-wrap items-end gap-x-8 gap-y-3">
@@ -93,7 +120,7 @@ export function PrizeCard({ initial, enabled }: { initial: PrizeRow | null; enab
         </>
       ) : (
         <>
-          <h2 id="premio-titulo" className="font-display text-lg font-bold text-fg-strong">
+          <h2 id={titleId} className="font-display text-lg font-bold text-fg-strong">
             Prêmio da {view.round}
           </h2>
           <p className="mt-1 text-sm text-fg">
