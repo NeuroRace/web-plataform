@@ -136,7 +136,8 @@ export function formatDuration(s: number | null): string {
   const m = Math.floor(tenths / 600);
   const rest = tenths - m * 600;
   const sec = `${Math.floor(rest / 10)},${rest % 10}`;
-  return m === 0 ? `${sec} s` : `${m}:${sec.padStart(4, "0")}`;
+  // Espaço não-separável: em tela estreita o "s" não desce sozinho para a linha de baixo.
+  return m === 0 ? `${sec} s` : `${m}:${sec.padStart(4, "0")}`;
 }
 
 export function formatPct(v: number | null): string {

@@ -274,14 +274,18 @@ describe("formatDuration", () => {
   // NEU-173: o /ranking arredondava para o segundo e o telão mostrava a
   // fração, então 47,6 e 48,3 apareciam como "48s" em posições diferentes.
   it("abaixo de 1 min: uma casa decimal com vírgula", () => {
-    expect(formatDuration(48.3)).toBe("48,3 s");
-    expect(formatDuration(9.74)).toBe("9,7 s");
-    expect(formatDuration(59)).toBe("59,0 s");
-    expect(formatDuration(0)).toBe("0,0 s");
+    expect(formatDuration(48.3)).toBe("48,3\u00a0s");
+    expect(formatDuration(9.74)).toBe("9,7\u00a0s");
+    expect(formatDuration(59)).toBe("59,0\u00a0s");
+    expect(formatDuration(0)).toBe("0,0\u00a0s");
   });
   it("frações diferentes não empatam no mostrador", () => {
-    expect(formatDuration(47.6)).toBe("47,6 s");
-    expect(formatDuration(48.3)).toBe("48,3 s");
+    expect(formatDuration(47.6)).toBe("47,6\u00a0s");
+    expect(formatDuration(48.3)).toBe("48,3\u00a0s");
+  });
+  it("o 's' não quebra para a linha de baixo (espaço não-separável)", () => {
+    // Célula do ranking e letreiro não têm nowrap: em 390 px, "48,3" e "s" se separavam.
+    expect(formatDuration(48.3)).not.toContain(" ");
   });
   it("a partir de 1 min: M:SS,d", () => {
     expect(formatDuration(60)).toBe("1:00,0");
@@ -299,10 +303,10 @@ describe("formatDuration", () => {
     expect(formatDuration(119.97)).toBe("2:00,0");
   });
   it("59,94 arredonda para baixo -> 59,9 s", () => {
-    expect(formatDuration(59.94)).toBe("59,9 s");
+    expect(formatDuration(59.94)).toBe("59,9\u00a0s");
   });
   it("meio décimo sobe: 48,25 -> 48,3 s", () => {
-    expect(formatDuration(48.25)).toBe("48,3 s");
+    expect(formatDuration(48.25)).toBe("48,3\u00a0s");
   });
 
   it("mesmo texto do telão em todo o site", () => {

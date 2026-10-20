@@ -32,9 +32,9 @@ describe("formatClock", () => {
 
 describe("formatRaceTime", () => {
   it("abaixo de 1 min: uma casa decimal com vírgula", () => {
-    expect(formatRaceTime(12.9)).toBe("12,9 s");
-    expect(formatRaceTime(9.74)).toBe("9,7 s");
-    expect(formatRaceTime(30)).toBe("30,0 s");
+    expect(formatRaceTime(12.9)).toBe("12,9\u00a0s");
+    expect(formatRaceTime(9.74)).toBe("9,7\u00a0s");
+    expect(formatRaceTime(30)).toBe("30,0\u00a0s");
   });
 
   it("a partir de 1 min: M:SS,d", () => {
