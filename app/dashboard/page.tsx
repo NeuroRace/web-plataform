@@ -49,7 +49,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   const email = user.email ?? "";
 
-  const [{ summaries: realSummaries, displayName }, prizeRows] = await Promise.all([
+  const [{ summaries: realSummaries, displayName }, prize] = await Promise.all([
     loadOwnRaces(supabase, user.id),
     loadMyPrize(supabase),
   ]);
@@ -67,8 +67,12 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       </h1>
       <p className="mt-2 text-fg-muted">{email}</p>
 
-      {/* Prêmio da rodada (NEU-171): em qualquer aba; sem prêmio, nada aparece. */}
-      <PrizeCard initial={pickPrize(prizeRows ?? [])} />
+      {/* Prêmio da rodada (NEU-171): em qualquer aba; sem prêmio, nada aparece.
+          Sem a função no banco (NEU-167), o cartão nem tenta buscar de novo. */}
+      <PrizeCard
+        initial={prize.ok ? pickPrize(prize.rows) : null}
+        enabled={prize.ok || !prize.missing}
+      />
 
       {/* ABAS (Item 2 da NEU-83) */}
       <div className="mt-8 border-b border-border mb-8">

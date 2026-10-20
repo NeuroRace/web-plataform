@@ -11,6 +11,9 @@
 /** Intervalo de atualização enquanto o código vale. */
 export const PRIZE_REFRESH_MS = 30_000;
 
+/** Sem código valendo: a rodada pode fechar com a pessoa já no painel (carência de 5 min na NEU-167). */
+export const PRIZE_IDLE_REFRESH_MS = 60_000;
+
 /** Linha devolvida por `get_my_prize`. `status` é texto: estado novo no banco não pode quebrar a tela. */
 export type PrizeRow = {
   round_name: string;
@@ -57,7 +60,8 @@ export function prizeView(prize: PrizeRow | null, now: Date | null): PrizeView {
   if (prize.status === "entregue") {
     return { kind: "delivered", round, at: prize.delivered_at ? clock(prize.delivered_at) : null };
   }
-  if (prize.status === "recusado") return { kind: "passed", round };
+  // `passou`: o prêmio foi para outra conta (proposto à NEU-167); `recusado`: a pessoa abriu mão.
+  if (prize.status === "passou" || prize.status === "recusado") return { kind: "passed", round };
   return { kind: "none" };
 }
 

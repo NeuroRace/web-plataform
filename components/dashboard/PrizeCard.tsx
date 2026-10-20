@@ -1,32 +1,55 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { loadMyPrize } from "@/lib/prize-data";
-import { PRIZE_REFRESH_MS, pickPrize, prizeView, type PrizeRow } from "@/lib/prize";
+import {
+  PRIZE_IDLE_REFRESH_MS,
+  PRIZE_REFRESH_MS,
+  pickPrize,
+  prizeView,
+  type PrizeRow,
+} from "@/lib/prize";
 import { useNow } from "@/components/ranking/useLiveRanking";
 import { cn } from "@/lib/utils";
 
 /**
  * Prêmio da rodada no topo do painel (NEU-171). É o único lugar garantido para quem
- * não recebe e-mail nem WhatsApp. Enquanto o código vale, busca de novo a cada 30 s
- * (só com a aba visível); uma busca que falha mantém o que já estava na tela.
+ * não recebe e-mail nem WhatsApp.
+ *
+ * Busca de novo ao voltar para a aba, a cada 30 s enquanto o código vale e a cada 60 s
+ * sem ele: a rodada pode fechar com a pessoa já no painel. Só com a aba visível. Uma
+ * busca que falha mantém o que já estava na tela. `enabled` falso (função ainda não
+ * publicada) desliga tudo.
  */
-export function PrizeCard({ initial }: { initial: PrizeRow | null }) {
+export function PrizeCard({ initial, enabled }: { initial: PrizeRow | null; enabled: boolean }) {
   const [prize, setPrize] = useState(initial);
+  const [available, setAvailable] = useState(enabled);
   const now = useNow(PRIZE_REFRESH_MS);
   const view = prizeView(prize, now);
   const open = view.kind === "open";
+  const inFlight = useRef(false);
 
   useEffect(() => {
-    if (!open) return;
-    const poll = setInterval(async () => {
-      if (document.visibilityState !== "visible") return;
-      const rows = await loadMyPrize(createClient());
-      if (rows) setPrize(pickPrize(rows));
-    }, PRIZE_REFRESH_MS);
-    return () => clearInterval(poll);
-  }, [open]);
+    if (!available) return;
+    const refresh = async () => {
+      if (document.visibilityState !== "visible" || inFlight.current) return;
+      inFlight.current = true;
+      try {
+        const res = await loadMyPrize(createClient());
+        if (res.ok) setPrize(pickPrize(res.rows));
+        else if (res.missing) setAvailable(false);
+      } finally {
+        inFlight.current = false;
+      }
+    };
+    const poll = setInterval(refresh, open ? PRIZE_REFRESH_MS : PRIZE_IDLE_REFRESH_MS);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [available, open]);
 
   if (view.kind === "none") return null;
 
@@ -44,9 +67,14 @@ export function PrizeCard({ initial }: { initial: PrizeRow | null }) {
           <div className="mt-4 flex flex-wrap items-end gap-x-8 gap-y-3">
             <div>
               <p className="text-xs uppercase tracking-wider text-fg-muted">Código de retirada</p>
-              <p className="mt-1 font-mono text-4xl font-bold tracking-[0.2em] text-attention tabular-nums">
+              {/* Leitor de tela lê "482913" como número; a versão escondida vai dígito a dígito. */}
+              <p
+                aria-hidden="true"
+                className="mt-1 font-mono text-4xl font-bold tracking-[0.2em] text-attention tabular-nums"
+              >
                 {view.code}
               </p>
+              <p className="sr-only">{view.code.split("").join(" ")}</p>
             </div>
             {!view.late && (
               <p className="text-sm text-fg">
@@ -57,7 +85,7 @@ export function PrizeCard({ initial }: { initial: PrizeRow | null }) {
             )}
           </div>
           {view.late && (
-            <p className="mt-4 text-sm text-meditation">
+            <p className="mt-4 text-sm font-semibold text-fg-strong">
               {view.deadline ? `O prazo era ${view.deadline}. ` : ""}
               Vá ao estande agora: o código vale até o prêmio passar para o próximo colocado.
             </p>

@@ -69,6 +69,13 @@ describe("prizeView", () => {
     });
   });
 
+  it("passou (o prêmio foi para outra conta): mesmo aviso do recusado, sem código", () => {
+    expect(prizeView(row({ status: "passou" }), at("16:00"))).toEqual({
+      kind: "passed",
+      round: "Rodada 2",
+    });
+  });
+
   it("estados sem nada para a pessoa ver -> nada aparece", () => {
     for (const status of ["aguardando_fechamento", "sem_retirada", "cancelado", "inventado"]) {
       expect(prizeView(row({ status }), at("15:00"))).toEqual({ kind: "none" });
