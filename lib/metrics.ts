@@ -123,14 +123,20 @@ export function buildRaceSummaries(
   });
 }
 
+/**
+ * Tempo de corrida com uma casa decimal, igual em todo o site (NEU-173):
+ * "48,3 s" abaixo de 1 min; "1:05,3" a partir dele. Arredondar para o
+ * segundo empatava no mostrador corridas que o ranking separa.
+ */
 export function formatDuration(s: number | null): string {
   if (s == null) return "—";
   // NEU-72: arredondar o TOTAL antes de dividir. Arredondar só o resto fazia
-  // 59.6 virar "60s" e 119.7 virar "1m60s" — o carry nunca chegava aos minutos.
-  const total = Math.round(s);
-  const m = Math.floor(total / 60);
-  const sec = total % 60;
-  return m > 0 ? `${m}m${String(sec).padStart(2, "0")}s` : `${sec}s`;
+  // 59,96 virar "60,0 s" e 119,97 virar "1:60,0" — o carry nunca chegava aos minutos.
+  const tenths = Math.round(s * 10);
+  const m = Math.floor(tenths / 600);
+  const rest = tenths - m * 600;
+  const sec = `${Math.floor(rest / 10)},${rest % 10}`;
+  return m === 0 ? `${sec} s` : `${m}:${sec.padStart(4, "0")}`;
 }
 
 export function formatPct(v: number | null): string {
