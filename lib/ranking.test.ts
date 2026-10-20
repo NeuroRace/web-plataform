@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatRemaining,
+  formatEventTime,
   formatWindowRange,
   resolveWindows,
   type RankingWindow,
@@ -66,6 +67,12 @@ describe("formatRemaining", () => {
     [2 * 3_600_000, "2h 00min"],
   ])("%i ms → %s", (ms, text) => {
     expect(formatRemaining(ms)).toBe(text);
+  });
+});
+
+describe("formatEventTime", () => {
+  it("hora do evento no fuso de São Paulo, qualquer que seja o do aparelho", () => {
+    expect(formatEventTime("2026-10-24T18:20:00Z")).toBe("15:20");
   });
 });
 

@@ -226,6 +226,17 @@ export type Database = {
         }[]
       }
       ingest_race: { Args: { payload: Json }; Returns: Json }
+      // Contrato proposto à NEU-167 (NEU-171): editado à mão; regenerar depois do deploy.
+      get_my_prize: {
+        Args: never
+        Returns: {
+          round_name: string
+          status: string
+          code: string | null
+          claim_deadline: string | null
+          delivered_at: string | null
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

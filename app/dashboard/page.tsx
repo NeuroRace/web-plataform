@@ -13,6 +13,8 @@ import { ShareCard } from "@/components/share/ShareCard";
 import { buildArchetypeCard } from "@/lib/share-card";
 import { CollectionTab } from "@/components/collection/CollectionTab";
 import { computeUnlocks } from "@/lib/collection/unlocks";
+import { PrizeCard } from "@/components/dashboard/PrizeCard";
+import { loadMyPrize } from "@/lib/prize-data";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Meu Desempenho" };
@@ -46,7 +48,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   const email = user.email ?? "";
 
-  const { summaries: realSummaries, displayName } = await loadOwnRaces(supabase, user.id);
+  const [{ summaries: realSummaries, displayName }, prize] = await Promise.all([
+    loadOwnRaces(supabase, user.id),
+    loadMyPrize(supabase),
+  ]);
 
   const showDemo = isDemo && realSummaries.length === 0;
   const summaries = showDemo ? DEMO_SUMMARIES : realSummaries;
@@ -60,6 +65,10 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         Olá, <span className="text-attention">{nameFromEmail(email)}</span>!
       </h1>
       <p className="mt-2 text-fg-muted">{email}</p>
+
+      {/* Prêmio da rodada (NEU-171): em qualquer aba; sem prêmio, nada aparece.
+          Sem a função no banco (NEU-167), o cartão nem tenta buscar de novo. */}
+      <PrizeCard initial={prize.ok ? prize.rows : []} enabled={prize.ok || !prize.missing} />
 
       {/* ABAS (Item 2 da NEU-83) */}
       <div className="mt-8 border-b border-border mb-8">

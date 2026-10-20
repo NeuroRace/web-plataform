@@ -75,6 +75,11 @@ const timeFmt = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
 });
 
+/** "15:20", sempre no fuso do evento (servidor e browser iguais). */
+export function formatEventTime(iso: string): string {
+  return timeFmt.format(new Date(iso));
+}
+
 /** "14:00–16:00", sempre no fuso do evento (servidor e browser iguais). */
 export function formatWindowRange(w: RankingWindow): string {
   return `${timeFmt.format(new Date(w.starts_at))}–${timeFmt.format(new Date(w.ends_at))}`;
