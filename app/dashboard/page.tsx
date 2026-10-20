@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { loadOwnRaces } from "@/lib/supabase/dashboard";
+import { contactLine, greetingName } from "@/lib/account";
 import { DEMO_RACE } from "@/lib/coach/demo";
 import type { RaceSummary } from "@/lib/metrics";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
@@ -18,12 +19,6 @@ import { cn } from "@/lib/utils";
 export const metadata: Metadata = { title: "Meu Desempenho" };
 
 export const dynamic = "force-dynamic";
-
-function nameFromEmail(email: string): string {
-  const local = email.split("@")[0] ?? "";
-  const first = local.split(/[._-]/)[0] ?? local;
-  return first ? first.charAt(0).toUpperCase() + first.slice(1) : "Jogador";
-}
 
 const DEMO_SUMMARIES: RaceSummary[] = [DEMO_RACE];
 
@@ -51,15 +46,18 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const showDemo = isDemo && realSummaries.length === 0;
   const summaries = showDemo ? DEMO_SUMMARIES : realSummaries;
 
+  // NEU-175: conta de celular não tem e-mail.
+  const contact = contactLine(email, user.phone ?? null);
+
   return (
     <div className="mx-auto w-full max-w-5xl px-5 py-12">
       {/* MODAL DE ONBOARDING (Item 1 da NEU-83) */}
       <OnboardingModal userId={user.id} initialName={displayName} />
 
       <h1 className="font-display text-3xl font-extrabold sm:text-4xl text-fg-strong">
-        Olá, <span className="text-attention">{nameFromEmail(email)}</span>!
+        Olá, <span className="text-attention">{greetingName(displayName, email)}</span>!
       </h1>
-      <p className="mt-2 text-fg-muted">{email}</p>
+      <p className="mt-2 text-fg-muted">{contact}</p>
 
       {/* ABAS (Item 2 da NEU-83) */}
       <div className="mt-8 border-b border-border mb-8">
@@ -103,7 +101,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       {activeTab === "desempenho" ? (
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
           {summaries.length === 0 ? (
-            <EmptyState email={email} />
+            <EmptyState contact={contact} />
           ) : (
             <>
               {/* Card dos Stories (NEU-88): só com corrida real, nunca no demo. */}

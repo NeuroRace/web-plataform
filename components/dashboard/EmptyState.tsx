@@ -2,7 +2,8 @@ import Image from "next/image";
 import { ButtonLink } from "@/components/ui/Button";
 import mascotRunning from "@/public/assets/images/mascot-running.png";
 
-export function EmptyState({ email }: { email: string }) {
+/** `contact`: e-mail ou celular mascarado com que a pessoa entrou (NEU-175); vazio se nenhum. */
+export function EmptyState({ contact }: { contact: string }) {
   return (
     <div className="mx-auto max-w-lg p-8 text-center sm:p-10">
       <Image
@@ -22,11 +23,16 @@ export function EmptyState({ email }: { email: string }) {
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-fg-muted">
           <li>Jogue uma corrida com o sensor NeuroSky no estande.</li>
           <li>
-            Cadastre-se com o{" "}
-            <strong className="text-fg">mesmo e-mail</strong> ({email}) usado no
-            jogo.
+            Use no site o{" "}
+            <strong className="text-fg">mesmo e-mail ou celular</strong> que você
+            deu no estande.
+            {contact && (
+              <>
+                {" "}Você entrou com <strong className="text-fg">{contact}</strong>.
+              </>
+            )}
           </li>
-          <li>Confirme o e-mail — pronto, seus dados ficam vinculados.</li>
+          <li>Pronto: a corrida aparece aqui assim que é registrada.</li>
         </ol>
       </div>
       <ButtonLink href="/sobre" variant="secondary" className="mt-6">
