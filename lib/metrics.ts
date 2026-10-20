@@ -129,7 +129,8 @@ export function buildRaceSummaries(
  * segundo empatava no mostrador corridas que o ranking separa.
  */
 export function formatDuration(s: number | null): string {
-  if (s == null) return "—";
+  // Duração negativa ou inválida é dado ruim (relógio da borda): travessão, não um tempo inventado.
+  if (s == null || !Number.isFinite(s) || s < 0) return "—";
   // NEU-72: arredondar o TOTAL antes de dividir. Arredondar só o resto fazia
   // 59,96 virar "60,0 s" e 119,97 virar "1:60,0" — o carry nunca chegava aos minutos.
   const tenths = Math.round(s * 10);
@@ -137,7 +138,7 @@ export function formatDuration(s: number | null): string {
   const rest = tenths - m * 600;
   const sec = `${Math.floor(rest / 10)},${rest % 10}`;
   // Espaço não-separável: em tela estreita o "s" não desce sozinho para a linha de baixo.
-  return m === 0 ? `${sec} s` : `${m}:${sec.padStart(4, "0")}`;
+  return m === 0 ? `${sec}\u00a0s` : `${m}:${sec.padStart(4, "0")}`;
 }
 
 export function formatPct(v: number | null): string {

@@ -9,7 +9,6 @@ import {
   type TelemetryRow,
 } from "@/lib/metrics";
 import { metricsConfig } from "@/lib/site";
-import { formatRaceTime } from "@/lib/telao";
 
 /**
  * Cobre lib/metrics.ts (lógica load-bearing do dashboard, antes sem teste).
@@ -309,9 +308,11 @@ describe("formatDuration", () => {
     expect(formatDuration(48.25)).toBe("48,3\u00a0s");
   });
 
-  it("mesmo texto do telão em todo o site", () => {
-    for (const s of [9.74, 48.3, 59.96, 65.3, 119.97]) {
-      expect(formatDuration(s)).toBe(formatRaceTime(s));
+  it("valor inválido (NaN, infinito, negativo) -> travessão, não um tempo inventado", () => {
+    // computeMetrics não confere finished_at > started_at: relógio da borda adiantado
+    // daria "-1:55,0" em vez de um aviso de dado ruim.
+    for (const s of [NaN, Infinity, -0.06, -5]) {
+      expect(formatDuration(s)).toBe("—");
     }
   });
 });

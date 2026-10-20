@@ -1,4 +1,4 @@
-import type { RaceSummary } from "@/lib/metrics";
+import { formatDuration, type RaceSummary } from "@/lib/metrics";
 import { analyzeRace } from "@/lib/coach/analyze";
 import type { Archetype, Badge, CoachFacts } from "@/lib/coach/types";
 import { COLLECTION, type UnlockRule } from "./catalog";
@@ -12,7 +12,6 @@ export interface Unlock {
 }
 
 const int = (v: number | null | undefined): number | null => (v == null ? null : Math.round(v));
-const seconds = (v: number): string => v.toFixed(1).replace(".", ",");
 
 function archetypeMetric(archetype: Archetype, facts: CoachFacts): string | null {
   const m = facts.metrics;
@@ -50,7 +49,7 @@ function badgeMetric(badge: Badge, facts: CoachFacts): string | null {
     case "FADIGA_ZERO":
       return t1 == null ? null : `Começou com ${int(t1)} e terminou com ${int(t3)}`;
     case "RECORDE_PESSOAL":
-      if (facts.progress.personalBest.time && m.durationSeconds != null) return `Tempo de ${seconds(m.durationSeconds)} s`;
+      if (facts.progress.personalBest.time && m.durationSeconds != null) return `Tempo de ${formatDuration(m.durationSeconds)}`;
       return m.avgAttention == null ? null : `Foco médio de ${int(m.avgAttention)}`;
     case "PRIMEIRA_CORRIDA":
       return null;

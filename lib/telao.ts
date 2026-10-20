@@ -3,7 +3,6 @@
  * formatar o cronômetro e decidir quando celebrar um NOVO LÍDER.
  */
 import type { LeaderboardRow } from "@/components/ranking/LeaderboardTable";
-import { formatDuration } from "@/lib/metrics";
 
 /** Palco fixo do telão: o layout é desenhado em 1920×1080 e escalado para a TV. */
 export const STAGE_W = 1920;
@@ -24,10 +23,8 @@ export function formatClock(ms: number): string {
   return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-/** Tempo de corrida no telão: o mesmo texto do resto do site ("12,9 s", "1:05,3"). */
-export function formatRaceTime(seconds: number): string {
-  return formatDuration(seconds);
-}
+/** Tempo de corrida no telão: é o próprio formatDuration, para nunca divergir do resto do site. */
+export { formatDuration as formatRaceTime } from "@/lib/metrics";
 
 /** Duas letras para o avatar: "luna_zen" → "LU", "Léo" → "LÉ", "42" → "#". */
 export function initials(name: string): string {
