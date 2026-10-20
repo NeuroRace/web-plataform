@@ -71,15 +71,15 @@ describe("TelaoPodio", () => {
 
     const podio = within(screen.getByRole("list", { name: "Pódio" })).getAllByRole("listitem");
     expect(podio.map((li) => li.getAttribute("aria-label"))).toEqual([
-      "2º lugar: Ana, 13,9 s",
-      "1º lugar: luna_zen, 12,9 s",
-      "3º lugar: mente_veloz, 14,9 s",
+      "2º lugar: Ana, 13,9\u00a0s",
+      "1º lugar: luna_zen, 12,9\u00a0s",
+      "3º lugar: mente_veloz, 14,9\u00a0s",
     ]);
 
     const resto = within(screen.getByRole("list", { name: "Do 4º ao 9º" })).getAllByRole(
       "listitem",
     );
-    expect(resto.map((li) => li.textContent)).toEqual(["4Bia15,9 s", "5caio.f16,9 s"]);
+    expect(resto.map((li) => li.textContent)).toEqual(["4Bia15,9\u00a0s", "5caio.f16,9\u00a0s"]);
   });
 
   it("cronômetro regressivo da rodada em H:MM:SS, a cada segundo", async () => {

@@ -23,18 +23,8 @@ export function formatClock(ms: number): string {
   return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-/**
- * Tempo de corrida com uma casa decimal: no pódio, "1m05s" empataria corridas
- * que o ranking separa. "12,9 s" abaixo de 1 min; "1:05,3" a partir dele.
- */
-export function formatRaceTime(seconds: number): string {
-  const tenths = Math.round(seconds * 10);
-  const m = Math.floor(tenths / 600);
-  const rest = tenths - m * 600;
-  const s = `${Math.floor(rest / 10)},${rest % 10}`;
-  if (m === 0) return `${s} s`;
-  return `${m}:${s.padStart(4, "0")}`;
-}
+/** Tempo de corrida no telão: é o próprio formatDuration, para nunca divergir do resto do site. */
+export { formatDuration as formatRaceTime } from "@/lib/metrics";
 
 /** Duas letras para o avatar: "luna_zen" → "LU", "Léo" → "LÉ", "42" → "#". */
 export function initials(name: string): string {

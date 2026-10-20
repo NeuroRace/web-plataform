@@ -19,7 +19,7 @@ describe("LeaderboardTable", () => {
 
     const linha = screen.getByRole("row", { name: /PedroT/ });
     expect(within(linha).getByText("1")).toBeInTheDocument();
-    expect(within(linha).getByText("29s")).toBeInTheDocument();
+    expect(within(linha).getByText("29,0 s")).toBeInTheDocument();
   });
 
   it("marca a linha do próprio usuário com aria-current", () => {
@@ -63,10 +63,15 @@ describe("LeaderboardTable", () => {
   it("formata score fracionado como duração (score é numeric no banco)", () => {
     render(
       <LeaderboardTable
-        rows={[{ rank: 1, display_name: "Fracao", score: 119.7 }]}
+        rows={[
+          { rank: 1, display_name: "Fracao", score: 47.6 },
+          { rank: 2, display_name: "Virada", score: 119.97 },
+        ]}
       />,
     );
-    // NEU-72: 119.7 é 2m00s, não "1m60s".
-    expect(screen.getByText("2m00s")).toBeInTheDocument();
+    // NEU-173: a fração aparece, igual ao telão.
+    expect(screen.getByText("47,6 s")).toBeInTheDocument();
+    // NEU-72: 119,97 é 2:00,0, não "1:60,0".
+    expect(screen.getByText("2:00,0")).toBeInTheDocument();
   });
 });

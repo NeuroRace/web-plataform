@@ -59,6 +59,14 @@ describe("desbloqueios da coleção (NEU-134)", () => {
     expect(got.get("primeira-corrida")?.metric).toBeNull();
   });
 
+  it("test_UnlockMetric_recorde_de_tempo_usa_o_mesmo_formato_do_resto_do_site", () => {
+    // NEU-173: a coleção tinha formatador próprio ("65,3 s"), diferente do ranking e do card.
+    const lenta = makeRace(flat(40, 30), { id: "a", startedAt: "2026-09-28T13:00:00.000Z", durationSeconds: 70 });
+    const rapida = makeRace(flat(40, 30), { id: "b", startedAt: "2026-09-29T13:00:00.000Z", durationSeconds: 65.3 });
+    const got = byId(computeUnlocks([lenta, rapida], ACCOUNT));
+    expect(got.get("recorde-pessoal")?.metric).toBe("Tempo de 1:05,3");
+  });
+
   it("test_UnlockDate_data_no_fuso_de_Sao_Paulo", () => {
     expect(formatUnlockDate("2026-09-30T02:30:00.000Z")).toBe("29/09");
     expect(formatUnlockDate("2026-09-28T13:00:00.000Z")).toBe("28/09");

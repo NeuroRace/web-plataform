@@ -269,36 +269,51 @@ describe("formatDuration", () => {
   it("null -> travessão", () => {
     expect(formatDuration(null)).toBe("—");
   });
-  it("0s", () => {
-    expect(formatDuration(0)).toBe("0s");
+
+  // NEU-173: o /ranking arredondava para o segundo e o telão mostrava a
+  // fração, então 47,6 e 48,3 apareciam como "48s" em posições diferentes.
+  it("abaixo de 1 min: uma casa decimal com vírgula", () => {
+    expect(formatDuration(48.3)).toBe("48,3\u00a0s");
+    expect(formatDuration(9.74)).toBe("9,7\u00a0s");
+    expect(formatDuration(59)).toBe("59,0\u00a0s");
+    expect(formatDuration(0)).toBe("0,0\u00a0s");
   });
-  it("< 60 sem minutos", () => {
-    expect(formatDuration(59)).toBe("59s");
+  it("frações diferentes não empatam no mostrador", () => {
+    expect(formatDuration(47.6)).toBe("47,6\u00a0s");
+    expect(formatDuration(48.3)).toBe("48,3\u00a0s");
   });
-  it("60 -> 1m00s (segundos com padStart 2)", () => {
-    expect(formatDuration(60)).toBe("1m00s");
+  it("o 's' não quebra para a linha de baixo (espaço não-separável)", () => {
+    // Célula do ranking e letreiro não têm nowrap: em 390 px, "48,3" e "s" se separavam.
+    expect(formatDuration(48.3)).not.toContain(" ");
   });
-  it("61 -> 1m01s", () => {
-    expect(formatDuration(61)).toBe("1m01s");
-  });
-  it("125 -> 2m05s", () => {
-    expect(formatDuration(125)).toBe("2m05s");
+  it("a partir de 1 min: M:SS,d", () => {
+    expect(formatDuration(60)).toBe("1:00,0");
+    expect(formatDuration(65.3)).toBe("1:05,3");
+    expect(formatDuration(125)).toBe("2:05,0");
   });
 
-  // NEU-72: com fração, arredondar só os segundos estoura o mostrador.
-  // O score de get_leaderboard é numeric (segundos com fração), então isso
-  // aparece direto no /ranking — não é caso hipotético.
-  it("59.6 -> 1m00s (não '60s')", () => {
-    expect(formatDuration(59.6)).toBe("1m00s");
+  // NEU-72: arredondar só o resto estoura o mostrador. O score de
+  // get_leaderboard é numeric (segundos com fração), então isso aparece
+  // direto no /ranking — não é caso hipotético.
+  it("59,96 -> 1:00,0 (não '60,0 s')", () => {
+    expect(formatDuration(59.96)).toBe("1:00,0");
   });
-  it("119.7 -> 2m00s (não '1m60s')", () => {
-    expect(formatDuration(119.7)).toBe("2m00s");
+  it("119,97 -> 2:00,0 (não '1:60,0')", () => {
+    expect(formatDuration(119.97)).toBe("2:00,0");
   });
-  it("59.4 arredonda para baixo -> 59s", () => {
-    expect(formatDuration(59.4)).toBe("59s");
+  it("59,94 arredonda para baixo -> 59,9 s", () => {
+    expect(formatDuration(59.94)).toBe("59,9\u00a0s");
   });
-  it("30.5 -> 31s (meio segundo sobe)", () => {
-    expect(formatDuration(30.5)).toBe("31s");
+  it("meio décimo sobe: 48,25 -> 48,3 s", () => {
+    expect(formatDuration(48.25)).toBe("48,3\u00a0s");
+  });
+
+  it("valor inválido (NaN, infinito, negativo) -> travessão, não um tempo inventado", () => {
+    // computeMetrics não confere finished_at > started_at: relógio da borda adiantado
+    // daria "-1:55,0" em vez de um aviso de dado ruim.
+    for (const s of [NaN, Infinity, -0.06, -5]) {
+      expect(formatDuration(s)).toBe("—");
+    }
   });
 });
 
