@@ -45,6 +45,17 @@ describe("fontes do próprio repo", () => {
     }
   });
 
+  it("as fontes não passam pelo proxy do Supabase (review do #28)", () => {
+    const proxy = readFileSync(join(root, "proxy.ts"), "utf8");
+    const pattern = proxy.match(/matcher:\s*\[[\s\S]*?"([^"]+)"/)?.[1];
+    expect(pattern).toBeDefined();
+    const matcher = new RegExp(`^${pattern!.replace(/\\\\/g, "\\")}$`);
+    for (const font of ["/fonts/inter-latin.woff2", "/fonts/space-grotesk-latin.woff2"]) {
+      expect(matcher.test(font), font).toBe(false);
+    }
+    expect(matcher.test("/dashboard")).toBe(true);
+  });
+
   it("o layout pré-carrega só arquivos que existem", () => {
     const preloaded = [...layout.matchAll(/"(\/fonts\/[^"]+\.woff2)"/g)].map((m) => m[1]);
     expect(preloaded).toHaveLength(3);
