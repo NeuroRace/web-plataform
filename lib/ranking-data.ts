@@ -59,6 +59,32 @@ async function fetchBoard(
 
 const toBoard = ({ rows, error }: Board): Board => ({ rows, error });
 
+/**
+ * Vencedor oficial da rodada (NEU-167/173), congelado no banco: uma corrida atrasada
+ * não troca o nome depois do anúncio.
+ * - `covered: false`: a premiação não cuida dessa rodada (desligada, anterior a
+ *   `ligada_em`, função ainda não publicada ou fora do formato) → vale o 1º ao vivo, como hoje.
+ * - `covered: true` com `winner: null`: carência ou sem retirada → o letreiro some.
+ * Nunca marca o snapshot como falho: é uma peça à parte do ranking.
+ */
+async function fetchOfficialWinner(
+  sb: Client,
+  roundId: string,
+): Promise<{ covered: false } | { covered: true; winner: LeaderboardRow | null }> {
+  const { data, error } = await sb.rpc("get_official_winners");
+  if (error || !Array.isArray(data)) return { covered: false };
+
+  const row: unknown = data.find(
+    (r: unknown) => typeof r === "object" && r !== null && (r as { round_id?: unknown }).round_id === roundId,
+  );
+  if (!row) return { covered: false };
+
+  const { display_name, score } = row as { display_name?: unknown; score?: unknown };
+  if (display_name === null && score === null) return { covered: true, winner: null };
+  if (typeof display_name !== "string" || typeof score !== "number") return { covered: false };
+  return { covered: true, winner: { rank: 1, display_name, score } };
+}
+
 /** Só o ranking geral, sem período (antes da NEU-110 ou em deploy parcial). */
 async function generalOnly(
   sb: Client,
@@ -96,7 +122,7 @@ export async function loadRanking(
   if (!windows) return generalOnly(sb, now, limit, false);
 
   const { current, previous, eventStart } = windows;
-  const [event, round, prev] = await Promise.all([
+  const [event, round, prev, official] = await Promise.all([
     fetchBoard(sb, { from: eventStart, limit }),
     current
       ? fetchBoard(sb, { from: current.starts_at, to: current.ends_at, limit })
@@ -104,6 +130,7 @@ export async function loadRanking(
     previous
       ? fetchBoard(sb, { from: previous.starts_at, to: previous.ends_at, limit: 1 })
       : Promise.resolve(null),
+    previous ? fetchOfficialWinner(sb, previous.id) : Promise.resolve(null),
   ]);
 
   // Deploy parcial (tabela nova, função antiga): o geral ainda funciona sem período.
@@ -116,7 +143,7 @@ export async function loadRanking(
     windows,
     event: toBoard(event),
     round: round ? toBoard(round) : null,
-    previousWinner: prev?.rows[0] ?? null,
+    previousWinner: official?.covered ? official.winner : (prev?.rows[0] ?? null),
     failed: event.error || Boolean(round?.error) || Boolean(prev?.error),
     fetchedAt: now.toISOString(),
   };
