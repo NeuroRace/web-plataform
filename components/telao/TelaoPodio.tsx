@@ -6,16 +6,21 @@ import { cn } from "@/lib/utils";
 import type { LeaderboardRow } from "@/components/ranking/LeaderboardTable";
 import { useLiveRanking, useNow } from "@/components/ranking/useLiveRanking";
 import type { RankingSnapshot } from "@/lib/ranking-data";
+import type { RankingWindow } from "@/lib/ranking";
 import {
   NEW_LEADER_MS,
   PODIO_LIMIT,
+  SLIDE_MS,
   buildPodium,
+  carouselSlides,
   formatClock,
   formatRaceTime,
   initials,
   isNewLeader,
+  nextSlide,
   type Leadership,
   type PodiumSlot,
+  type Slide,
 } from "@/lib/telao";
 import { TelaoStage } from "./TelaoStage";
 import { TelaoOperator } from "./TelaoOperator";
@@ -34,20 +39,30 @@ function leadershipOf(snap: RankingSnapshot): Leadership {
   return { windowId: current.id, name: snap.round?.rows[0]?.display_name ?? null };
 }
 
+/** Passos da tela "Como jogar" do carrossel. */
+const STEPS = [
+  { title: "Vista o sensor", text: "Ele lê a sua atenção em tempo real.", color: "var(--color-attention)" },
+  { title: "Foque para acelerar", text: "Sem controle: quanto mais foco, mais rápido você corre.", color: "var(--color-pink)" },
+  { title: "Veja o seu resultado", text: "Aponte a câmera para o QR e encontre a sua corrida no site.", color: "var(--color-gold)" },
+] as const;
+
 /**
  * Telão modo Pódio (NEU-120): rodada atual com cronômetro, pódio do 1º ao 3º,
  * 4º ao 9º embaixo, convite com QR e a celebração de NOVO LÍDER.
  * Sem rodada acontecendo, mostra o pódio do geral do evento, sem cronômetro.
+ * Com `carousel` (NEU-123), alterna sozinho entre a rodada, o geral e "Como jogar".
  */
 export function TelaoPodio({
   initial,
   qrSvg,
   host,
+  carousel = false,
 }: {
   initial: RankingSnapshot;
   /** SVG do QR, gerado no servidor. */
   qrSvg: string;
   host: string;
+  carousel?: boolean;
 }) {
   const leadership = useRef<Leadership>(leadershipOf(initial));
   const [celebrate, setCelebrate] = useState<LeaderboardRow | null>(null);
@@ -71,99 +86,225 @@ export function TelaoPodio({
   }, [celebrate]);
 
   const current = snap.windows?.current ?? null;
-  const board = current ? snap.round : snap.event;
-  const rows = board?.rows ?? [];
-  const { podium, rest } = buildPodium(rows);
+  const hasRound = Boolean(current);
+  const slides = carouselSlides(hasRound);
+  const [picked, setPicked] = useState<Slide>(slides[0]);
+  // Pódio: a rodada quando há uma acontecendo, senão o geral. Carrossel: a tela da vez.
+  const slide: Slide = carousel
+    ? slides.includes(picked)
+      ? picked
+      : slides[0]
+    : hasRound
+      ? "rodada"
+      : "evento";
+
+  useEffect(() => {
+    if (!carousel) return;
+    const advance = setTimeout(
+      () => setPicked(nextSlide(carouselSlides(hasRound), slide)),
+      SLIDE_MS[slide],
+    );
+    return () => clearTimeout(advance);
+  }, [carousel, hasRound, slide]);
 
   return (
     <MotionConfig reducedMotion="user">
       <TelaoStage>
-        <div className="flex h-full flex-col gap-6 px-20 py-12 font-sans text-fg-strong">
-          <header className="flex items-start justify-between">
-            <div className="flex flex-col gap-2">
-              <h1 className="font-display text-[56px] font-bold tracking-[-0.02em]">
-                {current?.name ?? "Geral do evento"}
-              </h1>
-              <LiveBadge stale={stale} />
-            </div>
-            {current && (
-              <div className="flex flex-col items-end gap-1">
-                <span className="text-[26px] tracking-[0.08em] text-fg">TERMINA EM</span>
-                <span
-                  className="font-mono text-[96px] leading-none font-bold tabular-nums"
-                  aria-label="Tempo restante da rodada"
-                >
-                  {now ? formatClock(Date.parse(current.ends_at) - now.getTime()) : "–:––:––"}
-                </span>
-              </div>
-            )}
-          </header>
-
-          <LayoutGroup>
-            {rows.length === 0 ? (
-              <EmptyState round={Boolean(current)} />
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={slide}
+            className="h-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            {slide === "comoJogar" ? (
+              <HowToPlay qrSvg={qrSvg} host={host} />
             ) : (
-              <ol
-                aria-label="Pódio"
-                className="flex min-h-[480px] items-end justify-center gap-10"
-              >
-                {podium.map((slot) => (
-                  <PodiumColumn key={slot.place} slot={slot} />
-                ))}
-              </ol>
+              <PodiumSlide
+                round={slide === "rodada" ? current : null}
+                rows={(slide === "rodada" ? snap.round : snap.event)?.rows ?? []}
+                now={now}
+                stale={stale}
+                qrSvg={qrSvg}
+                host={host}
+              />
             )}
+          </motion.div>
+        </AnimatePresence>
 
-            {/* QR grande à direita, ao lado do 4º ao 9º: no rodapé ele não cabe no palco de 1080. */}
-            <footer className="mt-auto flex items-end gap-16">
-              <div className="flex min-w-0 flex-1 flex-col gap-6">
-                {rows.length > 0 && (
-                  <ol
-                    aria-label="Do 4º ao 9º"
-                    className={cn(
-                      "grid grid-cols-2 gap-x-16 gap-y-3 pt-5",
-                      rest.length > 0 && "border-t border-hairline",
-                    )}
-                  >
-                    {rest.map((r) => (
-                      <motion.li
-                        layout
-                        key={r.display_name}
-                        className="flex items-center gap-6 py-1.5 text-[32px]"
-                      >
-                        <span className="w-12 font-display font-bold text-fg-muted">{r.rank}</span>
-                        <span className="min-w-0 flex-1 truncate font-semibold">
-                          {r.display_name}
-                        </span>
-                        <span className="font-mono text-fg tabular-nums">
-                          {formatRaceTime(r.score)}
-                        </span>
-                      </motion.li>
-                    ))}
-                  </ol>
-                )}
-                <p className="font-display text-[32px] font-bold">
-                  Seu nome aqui? Jogue no estande
-                </p>
-              </div>
-              <div className="flex shrink-0 flex-col items-center gap-3">
-                <div
-                  className="size-[220px] overflow-hidden rounded-[14px] [&>svg]:size-full"
-                  role="img"
-                  aria-label={`QR code para ${host}`}
-                  dangerouslySetInnerHTML={{ __html: qrSvg }}
-                />
-                <span className="font-mono text-[24px] font-medium text-attention">{host}</span>
-              </div>
-            </footer>
-          </LayoutGroup>
-        </div>
+        {carousel && <SlideDots slides={slides} slide={slide} />}
 
         <AnimatePresence>
           {celebrate && <NewLeader key={celebrate.display_name} row={celebrate} />}
         </AnimatePresence>
       </TelaoStage>
-      <TelaoOperator />
+      <TelaoOperator mode={carousel ? "carrossel" : "podio"} />
     </MotionConfig>
+  );
+}
+
+/** Pódio de um placar: o da rodada (com cronômetro) ou o geral do evento. */
+function PodiumSlide({
+  round,
+  rows,
+  now,
+  stale,
+  qrSvg,
+  host,
+}: {
+  /** Rodada mostrada; null = geral do evento, sem cronômetro. */
+  round: RankingWindow | null;
+  rows: LeaderboardRow[];
+  now: Date | null;
+  stale: boolean;
+  qrSvg: string;
+  host: string;
+}) {
+  const { podium, rest } = buildPodium(rows);
+
+  return (
+    <div className="flex h-full flex-col gap-6 px-20 py-12 font-sans text-fg-strong">
+      <header className="flex items-start justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="font-display text-[56px] font-bold tracking-[-0.02em]">
+            {round?.name ?? "Geral do evento"}
+          </h1>
+          <LiveBadge stale={stale} />
+        </div>
+        {round && (
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-[26px] tracking-[0.08em] text-fg">TERMINA EM</span>
+            <span
+              className="font-mono text-[96px] leading-none font-bold tabular-nums"
+              aria-label="Tempo restante da rodada"
+            >
+              {now ? formatClock(Date.parse(round.ends_at) - now.getTime()) : "–:––:––"}
+            </span>
+          </div>
+        )}
+      </header>
+
+      <LayoutGroup>
+        {rows.length === 0 ? (
+          <EmptyState round={Boolean(round)} />
+        ) : (
+          <ol
+            aria-label="Pódio"
+            className="flex min-h-[480px] items-end justify-center gap-10"
+          >
+            {podium.map((slot) => (
+              <PodiumColumn key={slot.place} slot={slot} />
+            ))}
+          </ol>
+        )}
+
+        {/* QR grande à direita, ao lado do 4º ao 9º: no rodapé ele não cabe no palco de 1080. */}
+        <footer className="mt-auto flex items-end gap-16">
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
+            {rows.length > 0 && (
+              <ol
+                aria-label="Do 4º ao 9º"
+                className={cn(
+                  "grid grid-cols-2 gap-x-16 gap-y-3 pt-5",
+                  rest.length > 0 && "border-t border-hairline",
+                )}
+              >
+                {rest.map((r) => (
+                  <motion.li
+                    layout
+                    key={r.display_name}
+                    className="flex items-center gap-6 py-1.5 text-[32px]"
+                  >
+                    <span className="w-12 font-display font-bold text-fg-muted">{r.rank}</span>
+                    <span className="min-w-0 flex-1 truncate font-semibold">
+                      {r.display_name}
+                    </span>
+                    <span className="font-mono text-fg tabular-nums">
+                      {formatRaceTime(r.score)}
+                    </span>
+                  </motion.li>
+                ))}
+              </ol>
+            )}
+            <p className="font-display text-[32px] font-bold">
+              Seu nome aqui? Jogue no estande
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-col items-center gap-3">
+            <div
+              className="size-[220px] overflow-hidden rounded-[14px] [&>svg]:size-full"
+              role="img"
+              aria-label={`QR code para ${host}`}
+              dangerouslySetInnerHTML={{ __html: qrSvg }}
+            />
+            <span className="font-mono text-[24px] font-medium text-attention">{host}</span>
+          </div>
+        </footer>
+      </LayoutGroup>
+    </div>
+  );
+}
+
+/** "Como jogar + QR": o convite para quem passa pelo estande. */
+function HowToPlay({ qrSvg, host }: { qrSvg: string; host: string }) {
+  return (
+    <div className="flex h-full items-center gap-24 px-20 py-12 font-sans text-fg-strong">
+      <div className="flex min-w-0 flex-1 flex-col gap-14">
+        <h1 className="font-display text-[88px] leading-none font-bold tracking-[-0.02em]">
+          Como jogar
+        </h1>
+        <ol className="flex flex-col gap-11">
+          {STEPS.map((step, i) => (
+            <li key={step.title} className="flex items-center gap-9">
+              <span
+                aria-hidden
+                className="flex size-[96px] shrink-0 items-center justify-center rounded-full border-4 font-display text-[48px] font-bold"
+                style={{ borderColor: step.color, color: step.color }}
+              >
+                {i + 1}
+              </span>
+              <div className="flex flex-col gap-1">
+                <p className="font-display text-[56px] leading-tight font-bold">{step.title}</p>
+                <p className="text-[34px] text-fg">{step.text}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div className="flex shrink-0 flex-col items-center gap-5">
+        <div
+          className="size-[400px] overflow-hidden rounded-[20px] [&>svg]:size-full"
+          role="img"
+          aria-label={`QR code para ${host}`}
+          dangerouslySetInnerHTML={{ __html: qrSvg }}
+        />
+        <span className="font-mono text-[32px] font-medium text-attention">{host}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Em qual tela do carrossel o telão está: discreto, embaixo no centro. */
+function SlideDots({ slides, slide }: { slides: readonly Slide[]; slide: Slide }) {
+  const at = slides.indexOf(slide);
+  return (
+    <div
+      role="img"
+      aria-label={`Tela ${at + 1} de ${slides.length}`}
+      className="absolute bottom-5 left-1/2 flex -translate-x-1/2 gap-3"
+    >
+      {slides.map((s, i) => (
+        <span
+          key={s}
+          className={cn(
+            "h-2.5 rounded-full transition-all duration-500",
+            i === at ? "w-12 bg-attention" : "w-2.5 bg-border",
+          )}
+        />
+      ))}
+    </div>
   );
 }
 

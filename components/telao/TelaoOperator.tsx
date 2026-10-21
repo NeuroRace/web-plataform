@@ -8,10 +8,11 @@ import { cn } from "@/lib/utils";
 const IDLE_MS = 3_000;
 
 /**
- * Controles do operador, fora do palco: tela cheia, telão em lista (o do #11,
- * plano B) e sair. Aparecem ao mexer o mouse ou usar o teclado; somem sozinhos.
+ * Controles do operador, fora do palco: tela cheia, Pódio ↔ Carrossel (NEU-123),
+ * telão em lista (o do #11, plano B) e sair. Aparecem ao mexer o mouse ou usar
+ * o teclado; somem sozinhos.
  */
-export function TelaoOperator() {
+export function TelaoOperator({ mode }: { mode: "podio" | "carrossel" }) {
   const [visible, setVisible] = useState(false);
   const [full, setFull] = useState(false);
 
@@ -54,6 +55,14 @@ export function TelaoOperator() {
       >
         {full ? "Sair da tela cheia" : "Tela cheia"}
       </button>
+      {/* Navegação do Next: troca o modo sem recarregar a página nem sair da tela cheia. */}
+      <ButtonLink
+        href={mode === "podio" ? "/ranking?telao=1&modo=carrossel" : "/ranking?telao=1"}
+        variant="ghost"
+        className="px-4 py-2 text-sm"
+      >
+        {mode === "podio" ? "Carrossel" : "Pódio"}
+      </ButtonLink>
       <ButtonLink href="/ranking?telao=1&modo=lista" variant="ghost" className="px-4 py-2 text-sm">
         Modo lista
       </ButtonLink>

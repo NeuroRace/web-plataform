@@ -1,6 +1,6 @@
 /**
- * Telão do estande (NEU-120). Lógica pura do modo Pódio: montar o pódio,
- * formatar o cronômetro e decidir quando celebrar um NOVO LÍDER.
+ * Telão do estande (NEU-120). Lógica pura dos modos Pódio e Carrossel: montar o
+ * pódio, formatar o cronômetro, decidir quando celebrar um NOVO LÍDER e qual tela vem depois.
  */
 import type { LeaderboardRow } from "@/components/ranking/LeaderboardTable";
 
@@ -65,4 +65,28 @@ export function isNewLeader(before: Leadership, after: Leadership): boolean {
   if (!before || !after?.name) return false;
   if (before.windowId !== after.windowId) return false;
   return before.name !== after.name;
+}
+
+/**
+ * Carrossel (NEU-123): o telão alterna sozinho entre o Pódio da rodada, o geral
+ * do evento e "Como jogar". "Venceu a Rodada N" espera o vencedor oficial (NEU-167).
+ */
+export type Slide = "rodada" | "evento" | "comoJogar";
+
+/** Quanto cada tela fica no ar. A rodada é o que importa: fica mais. */
+export const SLIDE_MS: Record<Slide, number> = {
+  rodada: 20_000,
+  evento: 12_000,
+  comoJogar: 12_000,
+};
+
+/** Telas do carrossel na ordem. Sem rodada acontecendo, não há Pódio da rodada. */
+export function carouselSlides(hasRound: boolean): Slide[] {
+  return hasRound ? ["rodada", "evento", "comoJogar"] : ["evento", "comoJogar"];
+}
+
+/** Próxima tela. Se a atual saiu da lista (a rodada acabou), volta para a primeira. */
+export function nextSlide(slides: readonly Slide[], current: Slide): Slide {
+  const i = slides.indexOf(current);
+  return i === -1 ? slides[0] : slides[(i + 1) % slides.length];
 }

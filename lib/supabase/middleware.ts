@@ -36,11 +36,18 @@ export async function updateSession(request: NextRequest) {
 
   // Protege /dashboard: sem sessão → manda pro login (guardando o destino).
   if (!user && request.nextUrl.pathname.startsWith("/dashboard")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("next", request.nextUrl.pathname);
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(loginRedirectUrl(request.nextUrl));
   }
 
   return response;
+}
+
+/**
+ * URL do login que volta para `from` depois de entrar. A query do painel
+ * (`?moldura`, `?tab`) vai dentro do `next`, não na URL do login (NEU-136).
+ */
+export function loginRedirectUrl(from: Pick<URL, "origin" | "pathname" | "search">): URL {
+  const url = new URL("/login", from.origin);
+  url.searchParams.set("next", from.pathname + from.search);
+  return url;
 }

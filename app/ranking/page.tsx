@@ -34,17 +34,25 @@ export default async function RankingPage({ searchParams }: { searchParams: Sear
   const supabase = await createClient();
 
   if (telao) {
+    const modo = first(params.modo);
     // modo=lista: o telão do #11 (NEU-111), plano B se o Pódio der problema no estande.
-    if (first(params.modo) === "lista") {
+    if (modo === "lista") {
       const snapshot = await loadRanking(supabase, new Date(), { limit: TELAO_LIMIT });
       return <RankingBoard initial={snapshot} mode="telao" initialTab={initialTab} />;
     }
-    // Pódio (NEU-120): padrão do telão.
+    // Pódio (NEU-120): padrão do telão. modo=carrossel alterna sozinho entre as telas (NEU-123).
     const [snapshot, qr] = await Promise.all([
       loadRanking(supabase, new Date(), { limit: PODIO_LIMIT }),
       qrSvg(site.url),
     ]);
-    return <TelaoPodio initial={snapshot} qrSvg={qr} host={new URL(site.url).host} />;
+    return (
+      <TelaoPodio
+        initial={snapshot}
+        qrSvg={qr}
+        host={new URL(site.url).host}
+        carousel={modo === "carrossel"}
+      />
+    );
   }
 
   const {

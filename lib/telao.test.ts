@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  SLIDE_MS,
   buildPodium,
+  carouselSlides,
   formatClock,
   formatRaceTime,
   initials,
   isNewLeader,
+  nextSlide,
 } from "./telao";
 
 const row = (rank: number, display_name: string, score = 20 + rank) => ({
@@ -100,5 +103,31 @@ describe("isNewLeader", () => {
     expect(isNewLeader({ windowId: "r1", name: "Ana" }, r2("Theo"))).toBe(false);
     expect(isNewLeader(r2("Ana"), null)).toBe(false);
     expect(isNewLeader(r2("Ana"), r2(null))).toBe(false);
+  });
+});
+
+describe("carrossel (NEU-123)", () => {
+  it("com rodada acontecendo: Pódio da rodada, geral do evento e Como jogar", () => {
+    expect(carouselSlides(true)).toEqual(["rodada", "evento", "comoJogar"]);
+  });
+
+  it("sem rodada: pula a tela da rodada", () => {
+    expect(carouselSlides(false)).toEqual(["evento", "comoJogar"]);
+  });
+
+  it("avança na ordem e volta ao começo", () => {
+    const slides = carouselSlides(true);
+    expect(nextSlide(slides, "rodada")).toBe("evento");
+    expect(nextSlide(slides, "evento")).toBe("comoJogar");
+    expect(nextSlide(slides, "comoJogar")).toBe("rodada");
+  });
+
+  it("tela que saiu da lista (a rodada acabou) vai para a primeira", () => {
+    expect(nextSlide(carouselSlides(false), "rodada")).toBe("evento");
+  });
+
+  it("a rodada fica mais tempo na tela que as outras", () => {
+    expect(SLIDE_MS.rodada).toBeGreaterThan(SLIDE_MS.evento);
+    expect(SLIDE_MS.evento).toBe(SLIDE_MS.comoJogar);
   });
 });
