@@ -45,8 +45,10 @@ const snap = (over: Partial<RankingSnapshot> = {}): RankingSnapshot => ({
 
 const QR = '<svg data-testid="qr"></svg>';
 
-function renderPodio(initial: RankingSnapshot) {
-  return render(<TelaoPodio initial={initial} qrSvg={QR} host="neurorace-v2.vercel.app" />);
+function renderPodio(initial: RankingSnapshot, carousel = false) {
+  return render(
+    <TelaoPodio initial={initial} qrSvg={QR} host="neurorace-v2.vercel.app" carousel={carousel} />,
+  );
 }
 
 async function tick(ms: number) {
@@ -173,5 +175,80 @@ describe("TelaoPodio", () => {
     renderPodio(snap());
     await tick(15_000);
     expect(loadRanking).toHaveBeenCalledWith(expect.anything(), expect.any(Date), { limit: 9 });
+  });
+});
+
+describe("TelaoPodio no modo Carrossel (NEU-123)", () => {
+  const heading = () => screen.getByRole("heading", { level: 1 });
+
+  it("alterna Pódio da rodada (20 s) → geral do evento (12 s) → Como jogar (12 s) → rodada", async () => {
+    loadRanking.mockResolvedValue(snap());
+    renderPodio(snap(), true);
+    expect(heading()).toHaveTextContent("Rodada 2");
+    expect(screen.getByLabelText("1º lugar: luna_zen, 12,9 s")).toBeInTheDocument();
+
+    await tick(19_999);
+    expect(heading()).toHaveTextContent("Rodada 2");
+    await tick(1);
+    expect(heading()).toHaveTextContent("Geral do evento");
+    expect(screen.getByLabelText("1º lugar: Geral1, 12,9 s")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Tempo restante da rodada")).not.toBeInTheDocument();
+
+    await tick(12_000);
+    expect(heading()).toHaveTextContent("Como jogar");
+    expect(screen.queryByRole("list", { name: "Pódio" })).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "QR code para neurorace-v2.vercel.app" })).toBeInTheDocument();
+
+    await tick(12_000);
+    expect(heading()).toHaveTextContent("Rodada 2");
+  });
+
+  it("sem rodada acontecendo: só geral do evento e Como jogar", async () => {
+    loadRanking.mockResolvedValue(snap({ windows: null, round: null }));
+    renderPodio(snap({ windows: null, round: null }), true);
+    expect(heading()).toHaveTextContent("Geral do evento");
+    await tick(12_000);
+    expect(heading()).toHaveTextContent("Como jogar");
+    await tick(12_000);
+    expect(heading()).toHaveTextContent("Geral do evento");
+  });
+
+  it("mostra em qual tela está", async () => {
+    loadRanking.mockResolvedValue(snap());
+    renderPodio(snap(), true);
+    expect(screen.getByLabelText("Tela 1 de 3")).toBeInTheDocument();
+    await tick(20_000);
+    expect(screen.getByLabelText("Tela 2 de 3")).toBeInTheDocument();
+  });
+
+  it("NOVO LÍDER celebra mesmo fora da tela da rodada", async () => {
+    loadRanking
+      .mockResolvedValueOnce(snap())
+      .mockResolvedValue(snap({ round: { rows: rows("Theo", "luna_zen", "Ana"), error: false } }));
+    renderPodio(snap(), true);
+    // Uma busca por vez: num avanço só de 30 s, a 2ª cairia com a 1ª ainda em voo.
+    await tick(15_000);
+    await tick(15_000);
+    expect(heading()).toHaveTextContent("Geral do evento");
+    expect(screen.getByRole("status")).toHaveTextContent("Theo");
+  });
+
+  it("Pódio (padrão) não alterna", async () => {
+    loadRanking.mockResolvedValue(snap());
+    renderPodio(snap());
+    await tick(45_000);
+    expect(heading()).toHaveTextContent("Rodada 2");
+    expect(screen.queryByLabelText(/^Tela \d de \d$/)).not.toBeInTheDocument();
+  });
+
+  it("o operador troca Pódio ↔ Carrossel sem sair do telão", () => {
+    const { unmount } = renderPodio(snap());
+    expect(screen.getByRole("link", { name: "Carrossel" })).toHaveAttribute(
+      "href",
+      "/ranking?telao=1&modo=carrossel",
+    );
+    unmount();
+    renderPodio(snap(), true);
+    expect(screen.getByRole("link", { name: "Pódio" })).toHaveAttribute("href", "/ranking?telao=1");
   });
 });
