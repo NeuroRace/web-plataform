@@ -42,7 +42,9 @@ export async function loadPainel(sb: Client): Promise<OpResult<OpPainel>> {
   const { data, error } = await sb.rpc("op_painel");
   if (error) return fail("op_painel", error);
   const painel = parsePainel(data);
-  return painel ? { ok: true, data: painel } : offContract("op_painel");
+  if (!painel) return offContract("op_painel");
+  if (painel.descartados > 0) console.error(`op_painel: ${painel.descartados} prêmio(s) fora do contrato`);
+  return { ok: true, data: painel };
 }
 
 /** Só os dígitos: o operador digita "12 34 56" ou cola com traço. O código nunca vai para o log. */

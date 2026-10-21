@@ -29,6 +29,7 @@ export function OperadorPanel({
   // Diferença entre o relógio do servidor e o do celular, medida quando o painel chega.
   const offset = useRef<number | null>(null);
   const [now, setNow] = useState<number | null>(null);
+  const [resumeFailed, setResumeFailed] = useState(false);
   const inFlight = useRef(false);
 
   const accept = useCallback((p: OpPainel) => {
@@ -116,7 +117,7 @@ export function OperadorPanel({
     return res.ok;
   };
 
-  const { config } = painel;
+  const { config, descartados } = painel;
 
   return (
     <div className="mx-auto w-full max-w-xl px-4 pt-6 pb-16 sm:px-6">
@@ -125,11 +126,14 @@ export function OperadorPanel({
           role="alert"
           className="sticky top-2 z-20 mb-4 flex items-center justify-between gap-3 rounded-xl border-2 border-danger bg-bg-elev px-4 py-3"
         >
-          <p className="font-display font-bold text-danger">Pausa geral ligada</p>
+          <div className="min-w-0">
+            <p className="font-display font-bold text-danger">Pausa geral ligada</p>
+            {resumeFailed && <p className="text-sm text-fg">Não mudou, tente de novo</p>}
+          </div>
           <button
             type="button"
             className={buttonClass("secondary", "px-4 py-2 text-sm")}
-            onClick={() => void setConfig({ pausa_geral: false })}
+            onClick={async () => setResumeFailed(!(await setConfig({ pausa_geral: false })))}
           >
             Retomar
           </button>
@@ -157,8 +161,16 @@ export function OperadorPanel({
 
       <CodeForm onSent={() => void refresh()} onDenied={() => setErro("sem_acesso")} />
 
+      {descartados > 0 && (
+        <p role="alert" className="mt-6 rounded-xl border-2 border-danger bg-danger/5 px-4 py-3 font-semibold text-danger">
+          {descartados === 1 ? "1 prêmio fora do formato." : `${descartados} prêmios fora do formato.`} Avise o time.
+        </p>
+      )}
+
       {painel.premios.length === 0 ? (
-        <p className="mt-8 text-center text-fg-muted">Nenhum prêmio ainda. A 1ª rodada fecha sozinha.</p>
+        descartados === 0 && (
+          <p className="mt-8 text-center text-fg-muted">Nenhum prêmio ainda. A 1ª rodada fecha sozinha.</p>
+        )
       ) : (
         groupByRound(painel.premios).map((g) => (
           <section key={g.round_id} aria-labelledby={`rodada-${g.round_id}`} className="mt-8">

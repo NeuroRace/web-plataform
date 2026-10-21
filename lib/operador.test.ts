@@ -71,6 +71,12 @@ describe("parsePainel", () => {
     });
     expect(p?.premios).toHaveLength(1);
     expect(p?.registro).toHaveLength(1);
+    // O operador precisa saber que um prêmio não apareceu, não ver "nenhum prêmio".
+    expect(p?.descartados).toBe(1);
+  });
+
+  it("tudo no formato: nenhum descartado", () => {
+    expect(parsePainel(painelJson())?.descartados).toBe(0);
   });
 });
 

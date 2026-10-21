@@ -53,7 +53,14 @@ export type OpRegistro = {
   detalhe: string | null;
 };
 
-export type OpPainel = { agora: string; config: OpConfig; premios: OpPremio[]; registro: OpRegistro[] };
+export type OpPainel = {
+  agora: string;
+  config: OpConfig;
+  premios: OpPremio[];
+  registro: OpRegistro[];
+  /** Prêmios que vieram fora do formato: a tela avisa, em vez de sumir com eles. */
+  descartados: number;
+};
 
 export type OpAcao =
   | "mais_10_min"
@@ -130,15 +137,20 @@ function isRegistro(v: unknown): v is OpRegistro {
   );
 }
 
-/** Painel fora do contrato → null. Prêmio ou registro fora do formato é descartado. */
+/**
+ * Painel fora do contrato → null. Prêmio ou registro fora do formato é descartado, e os
+ * prêmios descartados são contados: um prêmio que some em silêncio é justo o que pedia ação.
+ */
 export function parsePainel(data: unknown): OpPainel | null {
   if (!isObj(data) || !isText(data.agora) || !isConfig(data.config)) return null;
   if (!Array.isArray(data.premios) || !Array.isArray(data.registro)) return null;
+  const premios = data.premios.filter(isPremio);
   return {
     agora: data.agora,
     config: data.config,
-    premios: data.premios.filter(isPremio),
+    premios,
     registro: data.registro.filter(isRegistro),
+    descartados: data.premios.length - premios.length,
   };
 }
 

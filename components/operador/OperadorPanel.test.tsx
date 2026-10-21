@@ -48,6 +48,7 @@ const painel = (over: Partial<OpPainel> = {}): OpPainel => ({
   registro: [
     { em: "2026-10-24T15:08:00-03:00", operador: "pedro@x.com", acao: "passar", round_name: "Rodada 2", detalhe: null },
   ],
+  descartados: 0,
   ...over,
 });
 
@@ -178,5 +179,34 @@ describe("OperadorPanel", () => {
     expect(desempate).not.toHaveAttribute("open");
     expect(within(desempate as HTMLElement).getByText(/^48,312\s*s$/)).toBeInTheDocument();
     expect(within(desempate as HTMLElement).getByText("71,4")).toBeInTheDocument();
+  });
+
+  it("prêmio fora do formato: aviso no topo em vez de \"nenhum prêmio\"", () => {
+    renderPanel(ok(painel({ premios: [], descartados: 2 })));
+    expect(screen.getByText("2 prêmios fora do formato. Avise o time.")).toBeInTheDocument();
+    expect(screen.queryByText(/Nenhum prêmio ainda/)).not.toBeInTheDocument();
+  });
+
+  it("interruptor que não salvou avisa ao lado, sem fingir que mudou", async () => {
+    data.mudarConfig.mockResolvedValue({ ok: false, erro: "erro" });
+    renderPanel(ok(painel()));
+    const pausa = screen.getByRole("switch", { name: /Pausa geral/ });
+    await act(async () => {
+      fireEvent.click(pausa);
+    });
+    expect(pausa).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByText("Não mudou, tente de novo")).toBeInTheDocument();
+  });
+
+  it("Retomar que falha avisa no próprio aviso de pausa", async () => {
+    data.mudarConfig.mockResolvedValue({ ok: false, erro: "erro" });
+    const p = painel();
+    renderPanel(ok({ ...p, config: { ...p.config, pausa_geral: true } }));
+    const aviso = screen.getByRole("alert");
+    await act(async () => {
+      fireEvent.click(within(aviso).getByRole("button", { name: "Retomar" }));
+    });
+    expect(within(aviso).getByText("Não mudou, tente de novo")).toBeInTheDocument();
+    expect(aviso).toHaveTextContent("Pausa geral ligada");
   });
 });
