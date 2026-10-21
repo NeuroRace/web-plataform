@@ -213,17 +213,24 @@ describe("loadRanking: vencedor oficial da rodada anterior", () => {
     expect(snap.previousWinner?.display_name).toBe("Theo");
   });
 
-  it("erro ou formato inesperado na função oficial: 1º ao vivo, sem marcar falha", async () => {
+  it("outro erro ou formato fora do contrato: esconde o letreiro e loga, sem marcar falha", async () => {
+    // Grant faltando, timeout ou tipo diferente: mostrar o 1º ao vivo seria anunciar
+    // quem pode não ser o vencedor oficial, justo o que a NEU-173 evita.
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
     for (const official of [
+      () => ({ data: null, error: { code: "42501", message: "permission denied" } }),
       () => ({ data: null, error: { code: "", message: "HTTP 500" } }),
       () => ({ data: { round_id: "1" }, error: null }),
       winners({ round_id: "1", display_name: 42, score: "rápido" }),
     ]) {
+      log.mockClear();
       const { client } = fakeClient({ windows: [r1, r2], rpc: live, official });
       const snap = await loadRanking(client, noon30);
-      expect(snap.previousWinner?.display_name).toBe("Theo");
+      expect(snap.previousWinner).toBeNull();
       expect(snap.failed).toBe(false);
+      expect(log).toHaveBeenCalled();
     }
+    log.mockRestore();
   });
 
   it("sem rodada anterior: nem chama a função oficial", async () => {

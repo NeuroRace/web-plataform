@@ -62,17 +62,26 @@ const toBoard = ({ rows, error }: Board): Board => ({ rows, error });
 /**
  * Vencedor oficial da rodada (NEU-167/173), congelado no banco: uma corrida atrasada
  * não troca o nome depois do anúncio.
- * - `covered: false`: a premiação não cuida dessa rodada (desligada, anterior a
- *   `ligada_em`, função ainda não publicada ou fora do formato) → vale o 1º ao vivo, como hoje.
+ * - `covered: false`: a premiação não cuida dessa rodada (desligada ou anterior a
+ *   `ligada_em`) ou a função ainda não foi publicada (PGRST202) → 1º ao vivo, como hoje.
  * - `covered: true` com `winner: null`: carência ou sem retirada → o letreiro some.
+ *   Também com qualquer outro erro ou formato fora do contrato: na dúvida, não anuncia
+ *   ninguém (o 1º ao vivo pode não ser o vencedor oficial).
  * Nunca marca o snapshot como falho: é uma peça à parte do ranking.
  */
 async function fetchOfficialWinner(
   sb: Client,
   roundId: string,
 ): Promise<{ covered: false } | { covered: true; winner: LeaderboardRow | null }> {
+  const hidden = (why: string, detail?: unknown) => {
+    console.error(`get_official_winners: ${why}`, detail ?? "");
+    return { covered: true as const, winner: null };
+  };
+
   const { data, error } = await sb.rpc("get_official_winners");
-  if (error || !Array.isArray(data)) return { covered: false };
+  if (error?.code === MISSING_FUNCTION) return { covered: false };
+  if (error) return hidden("falhou", `${error.code} ${error.message}`);
+  if (!Array.isArray(data)) return hidden("formato fora do contrato");
 
   const row: unknown = data.find(
     (r: unknown) => typeof r === "object" && r !== null && (r as { round_id?: unknown }).round_id === roundId,
@@ -81,7 +90,9 @@ async function fetchOfficialWinner(
 
   const { display_name, score } = row as { display_name?: unknown; score?: unknown };
   if (display_name === null && score === null) return { covered: true, winner: null };
-  if (typeof display_name !== "string" || typeof score !== "number") return { covered: false };
+  if (typeof display_name !== "string" || typeof score !== "number") {
+    return hidden("linha fora do contrato", roundId);
+  }
   return { covered: true, winner: { rank: 1, display_name, score } };
 }
 
