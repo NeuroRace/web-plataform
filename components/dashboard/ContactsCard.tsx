@@ -6,6 +6,7 @@ import { buttonClass } from "@/components/ui/Button";
 import { hardNavigate } from "@/lib/hard-navigate";
 import { maskPhone } from "@/lib/account";
 import { parseIdentifier, describeIdentifier, CODE_LENGTH } from "@/lib/identifier";
+import { translateSendError, translateVerifyError, type ContactKind } from "@/lib/otp-errors";
 
 // NEU-163: a Joana correu no estande dando o celular e entrou no site com o
 // e-mail. Sem o celular na conta, a corrida dela não aparece. Aqui ela adiciona
@@ -15,32 +16,10 @@ import { parseIdentifier, describeIdentifier, CODE_LENGTH } from "@/lib/identifi
 // Fica separado do login (AuthForm) de propósito: se precisar tirar, o login
 // não muda.
 
-type Kind = "email" | "phone";
+type Kind = ContactKind;
 
 const RESEND_SECONDS = 60;
 const AFTER_CONFIRM = "/dashboard?tab=perfil";
-
-type AuthError = { message: string; status?: number; code?: string };
-
-function translateSendError(kind: Kind, err: AuthError): string {
-  const m = err.message.toLowerCase();
-  if (err.code === "phone_exists" || (kind === "phone" && m.includes("already")))
-    return "Esse celular já está em outra conta.";
-  if (err.code === "email_exists" || (kind === "email" && m.includes("already")))
-    return "Esse e-mail já está em outra conta.";
-  if (err.status === 429 || m.includes("rate limit") || m.includes("too many"))
-    return "Muitas tentativas. Espere um pouco e tente de novo.";
-  return "Não deu para enviar o código agora. Tente de novo.";
-}
-
-function translateVerifyError(err: AuthError): string {
-  const m = err.message.toLowerCase();
-  if (err.status === 429 || m.includes("rate limit") || m.includes("too many"))
-    return "Muitas tentativas. Espere um pouco e tente de novo.";
-  if (m.includes("expired")) return "Esse código venceu. Peça um novo.";
-  if (m.includes("invalid") || m.includes("token")) return "Código incorreto. Confira e tente de novo.";
-  return "Não deu para confirmar agora. Tente de novo.";
-}
 
 const inputClass =
   "w-full rounded-lg border border-border bg-bg px-4 py-3 text-fg-strong placeholder:text-fg-muted focus:border-attention focus:outline-none";
@@ -88,20 +67,26 @@ export function ContactsCard({ email, phone }: { email: string | null; phone: st
 
   async function onPedirCodigo(e: React.FormEvent) {
     e.preventDefault();
-    if (!adding) return;
+    if (!adding || loading) return;
+    const kind = adding;
     setError(null);
+    // A espera vale também para outro número: "Trocar" não zera o tempo (review do #32).
+    if (secondsLeft > 0) {
+      setError(`Espere ${secondsLeft}s para pedir outro código.`);
+      return;
+    }
 
     const id = parseIdentifier(raw);
-    if (id.kind !== adding) {
-      setError(adding === "phone" ? "Celular inválido. Use DDD + número, como 11 98765-4321." : "E-mail inválido.");
+    if (id.kind !== kind) {
+      setError(kind === "phone" ? "Celular inválido. Use DDD + número, como 11 98765-4321." : "E-mail inválido.");
       return;
     }
 
     setLoading(true);
-    const { error: err } = await send(adding, id.value);
+    const { error: err } = await send(kind, id.value);
     setLoading(false);
     if (err) {
-      setError(translateSendError(adding, err));
+      setError(translateSendError(err, kind));
       return;
     }
     setSentTo(id.value);
@@ -111,12 +96,14 @@ export function ContactsCard({ email, phone }: { email: string | null; phone: st
 
   async function onReenviar() {
     if (!adding || !sentTo || secondsLeft > 0) return;
+    const kind = adding;
     setError(null);
+    setAviso(null);
     setLoading(true);
-    const { error: err } = await send(adding, sentTo);
+    const { error: err } = await send(kind, sentTo);
     setLoading(false);
     if (err) {
-      setError(translateSendError(adding, err));
+      setError(translateSendError(err, kind));
       return;
     }
     setAviso("Código reenviado.");
@@ -139,13 +126,15 @@ export function ContactsCard({ email, phone }: { email: string | null; phone: st
 
     if (err) {
       setLoading(false);
-      setError(translateVerifyError(err));
+      setError(translateVerifyError(err, "Não deu para confirmar agora. Tente de novo."));
       return;
     }
     // Recarrega a página inteira: o servidor relê a conta e as corridas que o
     // banco acabou de ligar ao novo contato.
     hardNavigate(AFTER_CONFIRM);
   }
+
+  const codigoCompleto = adding !== null && new RegExp(`^\\d{${CODE_LENGTH[adding]}}$`).test(code.trim());
 
   return (
     <section aria-labelledby="contatos-titulo" className="glass-card mt-6 p-6 sm:p-8">
@@ -161,7 +150,7 @@ export function ContactsCard({ email, phone }: { email: string | null; phone: st
           <dt className="text-fg-muted">E-mail</dt>
           <dd className="flex items-center gap-3 text-fg-strong">
             {email ?? <span className="text-fg-muted">não adicionado</span>}
-            {!email && adding !== "email" && (
+            {!email && adding === null && (
               <button type="button" onClick={() => start("email")} className="text-attention underline">
                 Adicionar e-mail
               </button>
@@ -172,7 +161,7 @@ export function ContactsCard({ email, phone }: { email: string | null; phone: st
           <dt className="text-fg-muted">Celular</dt>
           <dd className="flex items-center gap-3 text-fg-strong">
             {phone ? maskPhone(phone) : <span className="text-fg-muted">não adicionado</span>}
-            {!phone && adding !== "phone" && (
+            {!phone && adding === null && (
               <button type="button" onClick={() => start("phone")} className="text-attention underline">
                 Adicionar celular
               </button>
@@ -208,7 +197,7 @@ export function ContactsCard({ email, phone }: { email: string | null; phone: st
             <button type="submit" disabled={loading} className={buttonClass("primary")}>
               {loading ? "Enviando..." : "Enviar código"}
             </button>
-            <button type="button" onClick={() => setAdding(null)} className={buttonClass("secondary")}>
+            <button type="button" onClick={() => setAdding(null)} disabled={loading} className={buttonClass("secondary")}>
               Cancelar
             </button>
           </div>
@@ -242,7 +231,11 @@ export function ContactsCard({ email, phone }: { email: string | null; phone: st
           {error && <Alert>{error}</Alert>}
           {aviso && <p className="text-sm text-fg">{aviso}</p>}
           <div className="flex flex-wrap items-center gap-3">
-            <button type="submit" disabled={loading} className={buttonClass("primary")}>
+            <button
+              type="submit"
+              disabled={loading || !codigoCompleto}
+              className={buttonClass("primary")}
+            >
               {loading ? "Aguarde..." : "Confirmar"}
             </button>
             <button
@@ -253,7 +246,12 @@ export function ContactsCard({ email, phone }: { email: string | null; phone: st
             >
               {secondsLeft > 0 ? `Reenviar código em ${secondsLeft}s` : "Reenviar código"}
             </button>
-            <button type="button" onClick={() => start(adding)} className="text-sm text-attention underline">
+            <button
+              type="button"
+              onClick={() => start(adding)}
+              disabled={loading}
+              className="text-sm text-attention underline disabled:text-fg-muted disabled:no-underline"
+            >
               Trocar {adding === "phone" ? "celular" : "e-mail"}
             </button>
           </div>

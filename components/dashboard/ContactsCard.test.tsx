@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ContactsCard } from "@/components/dashboard/ContactsCard";
 
@@ -137,9 +137,12 @@ describe("código", () => {
     expect(mocks.hardNavigate).not.toHaveBeenCalled();
   });
 
-  it("vencido", async () => {
-    await conferir({ message: "Token has expired or is invalid" });
-    expect(await screen.findByRole("alert")).toHaveTextContent(/venceu/i);
+  // Review do #32: é a resposta real do Supabase para código errado E vencido.
+  it("errado ou vencido (resposta real) não diz que venceu", async () => {
+    await conferir({ message: "Token has expired or is invalid", status: 403 });
+    const alerta = await screen.findByRole("alert");
+    expect(alerta).toHaveTextContent(/incorreto ou vencido/i);
+    expect(alerta).not.toHaveTextContent(/venceu/i);
   });
 
   it("muitas tentativas", async () => {
@@ -150,5 +153,80 @@ describe("código", () => {
   it("o reenvio só libera depois de 60 s", async () => {
     await adicionar(/adicionar celular/i, "11987654321");
     expect(await screen.findByRole("button", { name: /reenviar código em 60s/i })).toBeDisabled();
+  });
+
+  it("Confirmar só libera com o código inteiro", async () => {
+    const user = await adicionar(/adicionar celular/i, "11987654321");
+    const confirmar = await screen.findByRole("button", { name: /^confirmar$/i });
+    expect(confirmar).toBeDisabled();
+    await user.type(screen.getByLabelText(/^código$/i), "12345");
+    expect(confirmar).toBeDisabled();
+    await user.type(screen.getByLabelText(/^código$/i), "6");
+    expect(confirmar).toBeEnabled();
+  });
+});
+
+describe("review do #32", () => {
+  it("depois de 60 s, reenvia para o mesmo celular e limpa o aviso de antes", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      render(<ContactsCard email="joana@exemplo.com" phone={null} />);
+      await user.click(screen.getByRole("button", { name: "Adicionar celular" }));
+      await user.type(screen.getByLabelText(/^celular$/i), "11987654321");
+      await user.click(screen.getByRole("button", { name: /enviar código/i }));
+      await screen.findByLabelText(/^código$/i);
+
+      // A contagem agenda um timer por segundo, depois de cada render.
+      for (let i = 0; i < 61; i++) {
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+      }
+      mocks.updateUser.mockResolvedValueOnce({ data: {}, error: { message: "smtp down" } });
+      await user.click(screen.getByRole("button", { name: /^reenviar código$/i }));
+
+      expect(mocks.updateUser).toHaveBeenLastCalledWith({ phone: "+5511987654321" });
+      expect(await screen.findByRole("alert")).toHaveTextContent(/não deu para enviar/i);
+      expect(screen.queryByText("Código reenviado.")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("'Trocar celular' não pula a espera de 60 s", async () => {
+    const user = await adicionar(/adicionar celular/i, "11987654321");
+    await user.click(await screen.findByRole("button", { name: /trocar celular/i }));
+    await user.type(screen.getByLabelText(/^celular$/i), "11912345678");
+    await user.click(screen.getByRole("button", { name: /enviar código/i }));
+
+    expect(mocks.updateUser).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/espere \d+s/i);
+  });
+
+  it("durante o código de um tipo, o botão do outro tipo some", async () => {
+    await adicionar(/adicionar e-mail/i, "joana@exemplo.com", { email: null, phone: null });
+    await screen.findByLabelText(/^código$/i);
+    expect(screen.queryByRole("button", { name: "Adicionar celular" })).toBeNull();
+  });
+
+  it("enquanto o envio responde, Cancelar fica travado", async () => {
+    let responder: (v: unknown) => void = () => {};
+    mocks.updateUser.mockReturnValueOnce(new Promise((r) => (responder = r)));
+    const user = userEvent.setup();
+    render(<ContactsCard email="joana@exemplo.com" phone={null} />);
+    await user.click(screen.getByRole("button", { name: "Adicionar celular" }));
+    await user.type(screen.getByLabelText(/^celular$/i), "11987654321");
+    await user.click(screen.getByRole("button", { name: /enviar código/i }));
+
+    expect(screen.getByRole("button", { name: /cancelar/i })).toBeDisabled();
+    await act(async () => responder(ok));
+    expect(await screen.findByLabelText(/^código$/i)).toBeInTheDocument();
+  });
+
+  it("celular recusado pelo Supabase tem mensagem própria", async () => {
+    mocks.updateUser.mockResolvedValue({ data: {}, error: { message: "Invalid phone number format", status: 400 } });
+    await adicionar(/adicionar celular/i, "11987654321");
+    expect(await screen.findByRole("alert")).toHaveTextContent(/celular inválido/i);
   });
 });
