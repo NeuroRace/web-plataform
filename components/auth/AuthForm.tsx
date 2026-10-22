@@ -8,6 +8,7 @@ import { hardNavigate } from "@/lib/hard-navigate";
 import { safeNext } from "@/lib/safe-next";
 import { Reveal } from "@/components/Reveal";
 import { parseIdentifier, describeIdentifier, CODE_LENGTH, type Identifier } from "@/lib/identifier";
+import { translateSendError, translateVerifyError } from "@/lib/otp-errors";
 
 // NEU-161: o site entra sem senha. A pessoa digita e-mail ou celular, recebe um
 // código e entra com ele. Quem não tem conta ganha uma no mesmo passo, então
@@ -18,24 +19,6 @@ import { parseIdentifier, describeIdentifier, CODE_LENGTH, type Identifier } fro
 // às vezes abre no notebook — sem código, ela não entraria.
 
 const RESEND_SECONDS = 60;
-
-function translateSendError(message: string, status?: number): string {
-  const m = message.toLowerCase();
-  if (status === 429 || m.includes("rate limit") || m.includes("too many"))
-    return "Muitas tentativas. Espere um pouco e tente de novo.";
-  if (m.includes("invalid") && m.includes("phone")) return "Celular inválido. Use DDD + número.";
-  if (m.includes("invalid") && m.includes("email")) return "E-mail inválido.";
-  return "Não deu para enviar o código agora. Tente de novo.";
-}
-
-function translateVerifyError(message: string, status?: number): string {
-  const m = message.toLowerCase();
-  if (status === 429 || m.includes("rate limit") || m.includes("too many"))
-    return "Muitas tentativas. Espere um pouco e tente de novo.";
-  if (m.includes("expired")) return "Esse código venceu. Peça um novo.";
-  if (m.includes("invalid") || m.includes("token")) return "Código incorreto. Confira e tente de novo.";
-  return "Não deu para entrar agora. Tente de novo.";
-}
 
 // O link do e-mail que falha volta para cá com `?error`. Antes isso não era lido
 // em lugar nenhum, e a pessoa caía no login sem entender o que houve.
@@ -104,7 +87,7 @@ export function AuthForm() {
     setLoading(false);
 
     if (err) {
-      setError(translateSendError(err.message, (err as { status?: number }).status));
+      setError(translateSendError(err));
       return;
     }
     setSentTo(id);
@@ -119,7 +102,7 @@ export function AuthForm() {
     const { error: err } = await enviarCodigo(sentTo);
     setLoading(false);
     if (err) {
-      setError(translateSendError(err.message, (err as { status?: number }).status));
+      setError(translateSendError(err));
       return;
     }
     setAviso("Código reenviado.");
@@ -142,7 +125,7 @@ export function AuthForm() {
 
     if (err) {
       setLoading(false);
-      setError(translateVerifyError(err.message, (err as { status?: number }).status));
+      setError(translateVerifyError(err, "Não deu para entrar agora. Tente de novo."));
       return;
     }
     // Navegação completa, não router.push: em produção o link "Meu Desempenho" faz
