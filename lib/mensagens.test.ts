@@ -57,6 +57,23 @@ describe("executarAcao", () => {
       .toBe("link_invalido");
   });
 
+  it("404 ou 403 que nao vem da message-actions (funcao nao publicada, gateway): erro, nao link_invalido", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(await executarAcao("t", resposta(404, { code: "NOT_FOUND", message: "Requested function was not found" }), BASE))
+      .toBe("erro");
+    expect(await executarAcao("t", resposta(403, { msg: "forbidden" }), BASE)).toBe("erro");
+    expect(await executarAcao("t", vi.fn().mockResolvedValue(new Response("<html>404</html>", { status: 404 })), BASE))
+      .toBe("erro");
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("sem NEXT_PUBLIC_SUPABASE_URL: erro, sem chamar nada", async () => {
+    const f = vi.fn();
+    expect(await executarAcao("t", f, "")).toBe("erro");
+    expect(f).not.toHaveBeenCalled();
+  });
+
   it("500, rede fora ou resposta fora do contrato: erro", async () => {
     expect(await executarAcao("t", resposta(500, { erro: "falha_interna" }), BASE)).toBe("erro");
     expect(await executarAcao("t", vi.fn().mockRejectedValue(new TypeError("offline")), BASE)).toBe("erro");

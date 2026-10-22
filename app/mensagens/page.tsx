@@ -4,6 +4,8 @@ import { AcaoMensagem } from "@/components/mensagens/AcaoMensagem";
 export const metadata: Metadata = {
   title: "Avisos por e-mail",
   robots: { index: false, follow: false },
+  // O link traz o token da ação: nunca vai como Referer para outro site.
+  referrer: "no-referrer",
 };
 
 // Destino dos links "Parar de receber" e "Não vou poder" dos e-mails da premiação (NEU-112).

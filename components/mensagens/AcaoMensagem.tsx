@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { buttonClass } from "@/components/ui/Button";
 import { executarAcao, lerAcao, type ResultadoAcao } from "@/lib/mensagens";
@@ -36,6 +36,16 @@ const RESULTADO: Record<"ja_resolvido" | "link_invalido" | "erro", string> = {
 export function AcaoMensagem({ token }: { token: string | null }) {
   const acao = lerAcao(token);
   const [estado, setEstado] = useState<Estado>("pronto");
+  const resultadoRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    if (estado === "pronto" || estado === "enviando") return;
+    // O botão some com o resultado: o foco vai para a mensagem (teclado e leitor de tela).
+    resultadoRef.current?.focus();
+    // Ação resolvida: o link (que vale até 90 dias) sai da URL, do histórico e do que se compartilha.
+    // No erro ele fica, porque o "Tentar de novo" ainda precisa dele.
+    if (estado !== "erro") window.history.replaceState(null, "", window.location.pathname);
+  }, [estado]);
 
   if (!token || !acao) {
     return (
@@ -69,21 +79,18 @@ export function AcaoMensagem({ token }: { token: string | null }) {
             onClick={confirmar}
             disabled={enviando}
             aria-busy={enviando}
-            className={buttonClass(
-              "primary",
-              acao === "recusar"
-                ? "mt-8 w-full bg-meditation shadow-[0_0_20px_rgba(240,164,91,0.15)] hover:shadow-[0_0_30px_rgba(240,164,91,0.3)] focus-visible:outline-meditation"
-                : "mt-8 w-full",
-            )}
+            className={buttonClass(acao === "recusar" ? "warm" : "primary", "mt-8 w-full")}
           >
             {enviando ? "Confirmando…" : t.botao}
           </button>
         </>
       )}
 
-      <div role="status" aria-live="polite">
+      <div role={estado === "erro" ? "alert" : "status"} aria-live={estado === "erro" ? "assertive" : "polite"}>
         {decidido && (
-          <p className="mt-3 leading-relaxed text-fg">{estado === "feito" ? t.feito : RESULTADO[estado]}</p>
+          <p ref={resultadoRef} tabIndex={-1} className="mt-3 leading-relaxed text-fg outline-none">
+            {estado === "feito" ? t.feito : RESULTADO[estado]}
+          </p>
         )}
       </div>
 

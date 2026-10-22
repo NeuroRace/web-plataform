@@ -86,6 +86,33 @@ describe("AcaoMensagem", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(/não vai mais receber/i);
   });
 
+  it("o botao de abrir mao do premio e laranja, sem as classes do verde-agua", () => {
+    render(<AcaoMensagem token={token("recusar")} />);
+    const botao = screen.getByRole("button", { name: /não vou poder buscar/i });
+    expect(botao.className).toMatch(/\bbg-meditation\b/);
+    expect(botao.className).not.toMatch(/\bbg-attention\b/);
+  });
+
+  it("depois do resultado, o foco vai para a mensagem e o token sai da URL", async () => {
+    window.history.replaceState(null, "", `/mensagens?t=${token("sair")}`);
+    const user = userEvent.setup();
+    render(<AcaoMensagem token={token("sair")} />);
+    await user.click(screen.getByRole("button", { name: /parar de receber/i }));
+    const resultado = await screen.findByText(/não vai mais receber/i);
+    expect(resultado).toHaveFocus();
+    expect(window.location.search).toBe("");
+  });
+
+  it("erro: a mensagem e um alerta, e o token continua para tentar de novo", async () => {
+    window.history.replaceState(null, "", `/mensagens?t=${token("sair")}`);
+    mocks.executarAcao.mockResolvedValue("erro");
+    const user = userEvent.setup();
+    render(<AcaoMensagem token={token("sair")} />);
+    await user.click(screen.getByRole("button", { name: /parar de receber/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/não deu certo/i);
+    expect(window.location.search).not.toBe("");
+  });
+
   it("token ausente ou ilegivel: link invalido direto, sem botao", () => {
     render(<AcaoMensagem token={null} />);
     expect(screen.getByRole("heading", { name: /link inválido/i })).toBeInTheDocument();

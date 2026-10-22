@@ -21,15 +21,25 @@ export async function executarAcao(
   fetchFn: typeof fetch = fetch,
   base = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
 ): Promise<ResultadoAcao> {
+  if (!base) {
+    console.warn("[mensagens] NEXT_PUBLIC_SUPABASE_URL ausente");
+    return "erro";
+  }
   try {
     const r = await fetchFn(`${base}/functions/v1/message-actions`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ t: token }),
     });
-    if (r.status === 403 || r.status === 404) return "link_invalido";
-    if (!r.ok) return "erro";
-    const corpo = await r.json();
+    const corpo = await r.json().catch(() => null);
+    // Só é "link inválido" quando a própria função diz. Um 404/403 de outra origem (função não
+    // publicada, gateway) é erro de deploy e não pode virar culpa de quem clicou.
+    if (r.status === 403 && corpo?.erro === "assinatura") return "link_invalido";
+    if (r.status === 404 && corpo?.erro === "nao_encontrada") return "link_invalido";
+    if (!r.ok) {
+      console.warn(`[mensagens] message-actions respondeu ${r.status} fora do contrato`);
+      return "erro";
+    }
     if (corpo?.ok !== true) return "erro";
     if (corpo.acao === "sair") return "feito";
     if (corpo.acao === "recusar") {
