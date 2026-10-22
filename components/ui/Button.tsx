@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
-type Variant = "primary" | "secondary" | "ghost";
+type Variant = "primary" | "secondary" | "ghost" | "warm";
 
 const base =
   "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-display font-medium tracking-wide transition-all duration-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-attention disabled:pointer-events-none disabled:opacity-50";
@@ -13,6 +13,9 @@ const variants: Record<Variant, string> = {
   secondary:
     "border border-white/15 bg-transparent text-fg hover:bg-white/5 hover:text-fg-strong hover:border-white/30 hover:-translate-y-1",
   ghost: "text-fg hover:text-fg-strong hover:bg-white/5",
+  /** Ação irreversível (ex.: abrir mão do prêmio): mesmo peso do primary, no acento quente. */
+  warm:
+    "bg-meditation text-bg shadow-[0_0_20px_rgba(240,164,91,0.15)] hover:shadow-[0_0_30px_rgba(240,164,91,0.3)] hover:-translate-y-1 focus-visible:outline-meditation",
 };
 
 /** Classe utilitária para estilizar <button> nativos (forms, ações). */
