@@ -227,6 +227,16 @@ export type Database = {
       }
       ingest_race: { Args: { payload: Json }; Returns: Json }
       // Contrato proposto à NEU-167 (NEU-171): editado à mão; regenerar depois do deploy.
+      // Editado à mão (NEU-173): contrato proposto à NEU-167. Regenerar depois que ela sair.
+      get_official_winners: {
+        Args: never
+        Returns: {
+          round_id: string
+          round_name: string
+          display_name: string | null
+          score: number | null
+        }[]
+      }
       // Editado à mão (NEU-114): contrato proposto à NEU-168. Regenerar depois que ela sair.
       op_painel: { Args: never; Returns: Json }
       op_validar_codigo: { Args: { p_codigo: string }; Returns: Json }
