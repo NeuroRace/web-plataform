@@ -112,13 +112,19 @@ describe("mensagens de erro", () => {
     expect(mocks.hardNavigate).not.toHaveBeenCalled();
   });
 
-  it("codigo vencido tem mensagem propria", async () => {
-    mocks.verifyOtp.mockResolvedValue({ error: { message: "Token has expired" } });
+  // Review do #32: o Supabase manda a MESMA resposta para código errado e vencido.
+  // Este teste esperava "venceu", e por isso todo dígito errado virava "peça um novo".
+  it("resposta real do Supabase (errado ou vencido) nao diz que venceu", async () => {
+    mocks.verifyOtp.mockResolvedValue({
+      error: { message: "Token has expired or is invalid", code: "otp_expired", status: 403 },
+    });
     const user = await pedirCodigo("breq@exemplo.com");
     await user.type(await screen.findByLabelText(/^código$/i), "00000000");
     await user.click(screen.getByRole("button", { name: /^entrar$/i }));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(/venceu/i);
+    const alerta = await screen.findByRole("alert");
+    expect(alerta).toHaveTextContent(/incorreto ou vencido/i);
+    expect(alerta).not.toHaveTextContent(/venceu/i);
   });
 
   it("429 vira 'espere um pouco', nao erro generico", async () => {

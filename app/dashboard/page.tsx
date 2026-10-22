@@ -9,6 +9,7 @@ import type { RaceSummary } from "@/lib/metrics";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DisplayNameForm } from "@/components/ranking/DisplayNameForm";
+import { ContactsCard } from "@/components/dashboard/ContactsCard";
 import { OnboardingModal } from "@/components/dashboard/OnboardingModal";
 import { ShareCard } from "@/components/share/ShareCard";
 import { buildArchetypeCard } from "@/lib/share-card";
@@ -139,6 +140,11 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               initialName={displayName}
             />
           </div>
+          {/* NEU-163: só os contatos confirmados; o que falta, a pessoa adiciona aqui. */}
+          <ContactsCard
+            email={user.email_confirmed_at ? user.email ?? null : null}
+            phone={user.phone_confirmed_at ? user.phone ?? null : null}
+          />
         </div>
       )}
     </div>
